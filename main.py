@@ -23,6 +23,10 @@ async def create_admission(data: AdmissionCreate, db: AsyncSession = Depends(get
     await db.refresh(adm)
     return adm
 
+@app.get("/debug-version")
+def debug_version():
+    import models
+    return {"fields": list(models.Admission.__table__.columns.keys())}
 
 
 @app.get("/admissions", response_model=list[AdmissionRead])

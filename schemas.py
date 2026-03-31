@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from datetime import datetime
 
 class AdmissionBase(BaseModel):
     ticket_number: str
@@ -50,7 +51,7 @@ class AdmissionCreate(AdmissionBase):
 
 class AdmissionRead(AdmissionBase):
     id: int
-    created_at: str
+    created_at: datetime
 
     class Config:
         orm_mode = True

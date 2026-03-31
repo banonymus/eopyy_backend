@@ -6,47 +6,51 @@ class AdmissionBase(BaseModel):
     installation_code: str
     operator_id: str
 
-    id_type_val: str
-    id_number: str
-    special_case_val: str
-    insurance_expiry: str
-    insurance_carrier: str
-
     last_name: str
     first_name: str
     country_code: str
 
     phone1_area: str
     phone1_number: str
-    phone2_area: str | None = None
-    phone2_number: str | None = None
 
     amka: str
-    identity_flag_val: str
-
-    nk1_last_name: str | None = None
-    nk1_first_name: str | None = None
-    nk1_amka: str | None = None
-
-    patient_class: str
-    location: str
-    visit_number: str
-
-    diagnoses: str
-    procedures: str
-
-    insurance_id: str | None = None
-    insurance_company: str | None = None
+    pid31: str
 
     dob_hl7: str
     sex_val: str
+
+    pid_taut: str
+    pid_ekaa: str
+    pid_eidik: str
+    pid_expiry: str
+    pid_foreas: str
+
     doctor_amka: str
+    doctor_last: str
+    doctor_first: str
+
+    visit_number: str
+    admit_datetime: str
+    location_code: str
+
+    icd10_code: str
+    icd10_desc: str
+    icd10_date: str
+
+    nk1_ama: str
+
+    hl7: str
+    raw_response: str
+    status: str
+
 
 class AdmissionCreate(AdmissionBase):
     pass
 
+
 class AdmissionRead(AdmissionBase):
     id: int
+    created_at: str
 
     class Config:
         orm_mode = True

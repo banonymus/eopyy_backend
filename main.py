@@ -7,10 +7,13 @@ from database import get_session, engine
 from models import Base, Admission
 from schemas import AdmissionCreate, AdmissionRead
 
+EXPECTED_KEY = os.getenv("API_KEY")
+
 app = FastAPI()
 
 API_KEY = os.getenv("API_KEY")  # loaded from Render env vars
 API_HEADER = "x-api-key"        # required header name
+
 
 """
 @app.middleware("http")
@@ -27,9 +30,16 @@ async def verify_api_key(request: Request, call_next):
 """
 @app.middleware("http")
 async def verify_api_key(request: Request, call_next):
-    key = request.headers.get("x-api-key") or request.query_params.get("api_key")
-    if key != API_KEY:
+
+    # --- BYPASS PUBLIC ROUTES HERE ---
+    if request.url.path in ["/health", "/docs", "/openapi.json"]:
+        return await call_next(request)
+    # ---------------------------------
+
+    api_key = request.headers.get("X-API-Key")
+    if api_key != EXPECTED_KEY:
         raise HTTPException(status_code=401, detail="Unauthorized")
+
     return await call_next(request)
 
 

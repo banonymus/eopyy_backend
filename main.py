@@ -87,6 +87,7 @@ async def update_admission(
     data: AdmissionUpdate,
     db: AsyncSession = Depends(get_session),
 ):
+    logger.info("update_admission called with id=%s", admission_id)
     result = await db.execute(select(Admission).where(Admission.id == admission_id))
     adm = result.scalar_one_or_none()
     if not adm:

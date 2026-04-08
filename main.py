@@ -105,3 +105,31 @@ async def get_by_ticket(ticket_number: str, db: AsyncSession = Depends(get_sessi
     if not adm:
         raise HTTPException(status_code=404, detail="Admission not found")
     return adm
+
+
+from fastapi import HTTPException, Depends
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from database import get_session
+from models import Admission
+from schemas import AdmissionRead, AdmissionUpdate
+
+@app.patch("/admissions/{ticket_number}", response_model=AdmissionRead)
+async def patch_admission_by_ticket(
+    ticket_number: str,
+    payload: AdmissionUpdate,
+    db: AsyncSession = Depends(get_session),
+):
+    q = await db.execute(select(Admission).where(Admission.ticket_number == ticket_number))
+    adm = q.scalars().first()
+    if not adm:
+        raise HTTPException(status_code=404, detail="Admission not found")
+
+    update_data = payload.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(adm, field, value)
+
+    db.add(adm)
+    await db.commit()
+    await db.refresh(adm)
+    return adm

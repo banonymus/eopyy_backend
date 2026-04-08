@@ -5,15 +5,13 @@ from sqlalchemy import select
 
 from database import get_session, engine
 from models import Base, Admission
-from schemas import AdmissionCreate, AdmissionRead
-
-EXPECTED_KEY = os.getenv("API_KEY")
+from schemas import AdmissionCreate, AdmissionRead, AdmissionUpdate
 
 app = FastAPI()
 
 API_KEY = os.getenv("API_KEY")  # loaded from Render env vars
 API_HEADER = "x-api-key"        # required header name
-
+EXPECTED_KEY = os.getenv("API_KEY")
 
 """
 @app.middleware("http")
@@ -76,4 +74,22 @@ def debug_version():
     import models
     return {"fields": list(models.Admission.__table__.columns.keys())}
 
+@app.patch("/admissions/{admission_id}", response_model=AdmissionRead)
+async def update_admission(
+    admission_id: int,
+    data: AdmissionUpdate,
+    db: AsyncSession = Depends(get_session),
+):
+    result = await db.execute(select(Admission).where(Admission.id == admission_id))
+    adm = result.scalar_one_or_none()
+    if not adm:
+        raise HTTPException(status_code=404, detail="Admission not found")
+
+    update_data = data.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(adm, field, value)
+
+    await db.commit()
+    await db.refresh(adm)
+    return adm
 

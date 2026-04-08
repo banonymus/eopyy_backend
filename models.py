@@ -9,11 +9,13 @@ class Admission(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    ticket_number = Column(String(20))
+    # Identifiers / MSH
+    ticket_number = Column(String(20), unique=True, index=True, nullable=False)
     profile_id = Column(String(50))
     installation_code = Column(String(50))
     operator_id = Column(String(50))
 
+    # Patient
     last_name = Column(String(100))
     first_name = Column(String(100))
     country_code = Column(String(10))
@@ -33,6 +35,7 @@ class Admission(Base):
     pid_expiry = Column(String(20))
     pid_foreas = Column(String(50))
 
+    # Visit / PV1
     doctor_amka = Column(String(20))
     doctor_last = Column(String(100))
     doctor_first = Column(String(100))
@@ -41,14 +44,22 @@ class Admission(Base):
     admit_datetime = Column(String(20))
     location_code = Column(String(20))
 
+    # Diagnosis / DG1
     icd10_code = Column(String(20))
     icd10_desc = Column(String(255))
     icd10_date = Column(String(20))
 
     nk1_ama = Column(String(20))
 
-    hl7 = Column(Text)
-    raw_response = Column(Text)
-    status = Column(String(20))
+    # HL7 / responses
+    hl7 = Column(Text, nullable=True)
+    raw_response = Column(Text, nullable=True)
+    status = Column(String(20), nullable=True)
 
+    # --- New fields for discharge / A03 ---
+    discharge_datetime = Column(String(32), nullable=True)
+    discharge_result = Column(String(16), nullable=True)
+    raw_response_a03 = Column(Text, nullable=True)
+
+    # Timestamps
     created_at = Column(TIMESTAMP, server_default=func.now())

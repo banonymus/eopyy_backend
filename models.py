@@ -10,7 +10,7 @@ class Admission(Base):
     id = Column(Integer, primary_key=True, index=True)
 
     # Identifiers / MSH
-    ticket_number = Column(String(20), unique=True, index=True, nullable=False)
+    ticket_number = Column(String(64), unique=True, index=True, nullable=False)
     profile_id = Column(String(50))
     installation_code = Column(String(50))
     operator_id = Column(String(50))

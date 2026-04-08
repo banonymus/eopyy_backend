@@ -97,3 +97,11 @@ async def update_admission(
     await db.refresh(adm)
     return adm
 
+# use a descriptive path param name and string type
+@app.get("/admissions/by-ticket/{ticket_number}", response_model=AdmissionRead)
+async def get_by_ticket(ticket_number: str, db: AsyncSession = Depends(get_session)):
+    q = await db.execute(select(Admission).where(Admission.ticket_number == ticket_number))
+    adm = q.scalars().first()
+    if not adm:
+        raise HTTPException(status_code=404, detail="Admission not found")
+    return adm

@@ -11,7 +11,7 @@ from config import EXPECTED_KEY, API_HEADER  # <- import from config
 
 app = FastAPI()
 
-API_KEY = EXPECTED_KEY
+#API_KEY = EXPECTED_KEY
 
 API_KEY = os.getenv("API_KEY")  # loaded from Render env vars
 API_HEADER = "x-api-key"        # required header name

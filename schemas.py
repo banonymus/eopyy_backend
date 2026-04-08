@@ -8,13 +8,14 @@ from fastapi import BackgroundTasks, HTTPException, Depends
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import EXPECTED_KEY
+from main import EXPECTED_KEY
 from database import get_session, engine
 from main import app
 from models import Admission, Base
 from schemas import AdmissionRead, AdmissionUpdate
 from schemas import AdmissionCreate, AdmissionRead
-import requests
+
+#import requests
 import os
 
 """

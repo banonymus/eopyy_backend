@@ -1,3 +1,4 @@
+# main.py
 import os
 from fastapi import FastAPI, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,8 +7,11 @@ from sqlalchemy import select
 from database import get_session, engine
 from models import Base, Admission
 from schemas import AdmissionCreate, AdmissionRead, AdmissionUpdate
+from config import EXPECTED_KEY, API_HEADER  # <- import from config
 
 app = FastAPI()
+
+API_KEY = EXPECTED_KEY
 
 API_KEY = os.getenv("API_KEY")  # loaded from Render env vars
 API_HEADER = "x-api-key"        # required header name

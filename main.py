@@ -11,7 +11,7 @@ from config import EXPECTED_KEY, API_HEADER  # <- import from config
 
 app = FastAPI()
 
-#API_KEY = EXPECTED_KEY
+API_KEY = EXPECTED_KEY
 
 API_KEY = os.getenv("API_KEY")  # loaded from Render env vars
 API_HEADER = "x-api-key"        # required header name
@@ -78,7 +78,7 @@ def debug_version():
     import models
     return {"fields": list(models.Admission.__table__.columns.keys())}
 
-@app.patch("/admissions/{admission_id}", response_model=AdmissionRead)
+@app.patch("/admissions/id/{admission_id}", response_model=AdmissionRead)
 async def update_admission(
     admission_id: int,
     data: AdmissionUpdate,
@@ -120,29 +120,3 @@ async def patch_admission_by_ticket(
 
 
 
-from fastapi import HTTPException, Depends
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from database import get_session
-from models import Admission
-from schemas import AdmissionRead, AdmissionUpdate
-
-@app.patch("/admissions/{ticket_number}", response_model=AdmissionRead)
-async def patch_admission_by_ticket(
-    ticket_number: str,
-    payload: AdmissionUpdate,
-    db: AsyncSession = Depends(get_session),
-):
-    q = await db.execute(select(Admission).where(Admission.ticket_number == ticket_number))
-    adm = q.scalars().first()
-    if not adm:
-        raise HTTPException(status_code=404, detail="Admission not found")
-
-    update_data = payload.dict(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(adm, field, value)
-
-    db.add(adm)
-    await db.commit()
-    await db.refresh(adm)
-    return adm

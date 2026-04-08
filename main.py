@@ -8,6 +8,9 @@ from database import get_session, engine
 from models import Base, Admission
 from schemas import AdmissionCreate, AdmissionRead, AdmissionUpdate
 from config import EXPECTED_KEY, API_HEADER  # <- import from config
+import logging
+logger = logging.getLogger("uvicorn.error")
+
 
 app = FastAPI()
 
@@ -104,6 +107,7 @@ async def patch_admission_by_ticket(
     payload: AdmissionUpdate,
     db: AsyncSession = Depends(get_session),
 ):
+    logger.info("patch_admission_by_ticket called with ticket=%s", ticket_number)
     q = await db.execute(select(Admission).where(Admission.ticket_number == ticket_number))
     adm = q.scalars().first()
     if not adm:

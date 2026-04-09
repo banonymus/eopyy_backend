@@ -1,101 +1,100 @@
 # main.py
+# main.py
 import os
-from fastapi import FastAPI, Depends, HTTPException, Request
+import logging
+from typing import Optional
+
+from fastapi import FastAPI, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from database import get_session, engine
 from models import Base, Admission
 from schemas import AdmissionCreate, AdmissionRead, AdmissionUpdate
-from config import EXPECTED_KEY, API_HEADER  # <- import from config
-import logging
-logger = logging.getLogger("uvicorn.error")
+from config import EXPECTED_KEY as CONFIG_EXPECTED_KEY, API_HEADER as CONFIG_API_HEADER
 
+logger = logging.getLogger("uvicorn.error")
 
 app = FastAPI()
 
-API_KEY = EXPECTED_KEY
+# -------------------------
+# Configuration (single source of truth)
+# -------------------------
+EXPECTED_KEY: Optional[str] = os.getenv("API_KEY") or CONFIG_EXPECTED_KEY
+API_HEADER: str = os.getenv("API_HEADER") or CONFIG_API_HEADER or "x-api-key"
 
-API_KEY = os.getenv("API_KEY")  # loaded from Render env vars
-API_HEADER = "x-api-key"        # required header name
-EXPECTED_KEY = os.getenv("API_KEY")
+# -------------------------
+# Optional route dump for debugging
+# Enable by setting environment variable ENABLE_ROUTE_DUMP=1 in Render
+# -------------------------
+if os.getenv("ENABLE_ROUTE_DUMP") == "1":
 
-#------------------------debug-------------------------------------
-from fastapi import Request
-import logging
-logger = logging.getLogger("uvicorn.error")
+    @app.on_event("startup")
+    async def startup_routes_dump():
+        for route in app.routes:
+            logger.info("Route: %s %s", getattr(route, "methods", None), route.path)
 
+# -------------------------
+# Logging middleware
+# -------------------------
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     logger.info("Incoming request %s %s", request.method, request.url.path)
-    logger.info("Headers: %s", dict(request.headers))
+    logger.debug("Headers: %s", dict(request.headers))
     resp = await call_next(request)
     logger.info("Response %s for %s %s", resp.status_code, request.method, request.url.path)
     return resp
 
-@app.on_event("startup")
-async def startup_routes_dump():
-    for route in app.routes:
-        logger.info("Route: %s %s", getattr(route, "methods", None), route.path)
-
-
-
-
-#----------------------------end bebug-----------------------------------------
-
-"""
+# -------------------------
+# API key middleware
+# -------------------------
 @app.middleware("http")
 async def verify_api_key(request: Request, call_next):
-    # Skip docs endpoints if you want (optional)
-    if request.url.path.startswith("/docs") or request.url.path.startswith("/openapi"):
+    # Public endpoints that don't require API key
+    if request.url.path in ("/health", "/docs", "/openapi.json"):
         return await call_next(request)
 
-    key = request.headers.get(API_HEADER)
-    if key != API_KEY:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-
-    return await call_next(request)
-"""
-@app.middleware("http")
-async def verify_api_key(request: Request, call_next):
-
-    # --- BYPASS PUBLIC ROUTES HERE ---
-    if request.url.path in ["/health", "/docs", "/openapi.json"]:
-        return await call_next(request)
-    # ---------------------------------
-
-    api_key = request.headers.get("X-API-Key")
-    if api_key != EXPECTED_KEY:
-        raise HTTPException(status_code=401, detail="Unauthorized")
+    api_key = request.headers.get(API_HEADER) or request.headers.get(API_HEADER.upper()) or request.headers.get("X-API-Key")
+    if EXPECTED_KEY and api_key != EXPECTED_KEY:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
 
     return await call_next(request)
 
-
-
-
+# -------------------------
+# DB startup: create tables
+# -------------------------
 @app.on_event("startup")
 async def startup():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-
-from sqlalchemy.exc import IntegrityError
-
+# -------------------------
+# Admissions endpoints
+# POST /admissions implements upsert: create if missing, update if exists
+# -------------------------
 @app.post("/admissions", response_model=AdmissionRead)
 async def create_or_upsert_admission(data: AdmissionCreate, db: AsyncSession = Depends(get_session)):
+    """
+    Upsert behavior:
+    - If an admission with the same ticket_number exists, update it with provided fields and return 200.
+    - Otherwise create a new admission and return 201.
+    """
+    if not data.ticket_number:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="ticket_number is required")
+
     # Try to find existing by ticket_number
     result = await db.execute(select(Admission).where(Admission.ticket_number == data.ticket_number))
     existing = result.scalar_one_or_none()
 
     if existing:
-        # Partial update: apply only provided fields
         update_data = data.dict(exclude_unset=True)
         for field, value in update_data.items():
             setattr(existing, field, value)
         db.add(existing)
         await db.commit()
         await db.refresh(existing)
-        return existing
+        return existing  # 200 OK
 
     # Create new
     adm = Admission(**data.dict())
@@ -103,47 +102,40 @@ async def create_or_upsert_admission(data: AdmissionCreate, db: AsyncSession = D
     try:
         await db.commit()
     except IntegrityError:
+        # Race condition: another process created it concurrently
         await db.rollback()
-        # Race condition: another process created it; return that record
         result = await db.execute(select(Admission).where(Admission.ticket_number == data.ticket_number))
         existing = result.scalar_one_or_none()
         if existing:
             return existing
-        raise HTTPException(status_code=500, detail="Could not create admission")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Could not create admission")
     await db.refresh(adm)
+    # Return 201 for newly created resource
     return adm
 
-
-
-
-
-
-"""
-@app.post("/admissions", response_model=AdmissionRead)
-async def create_admission(data: AdmissionCreate, db: AsyncSession = Depends(get_session)):
-    adm = Admission(**data.dict())
-    db.add(adm)
-    await db.commit()
-    await db.refresh(adm)
-    return adm
-
-"""
-
+# -------------------------
+# List admissions
+# -------------------------
 @app.get("/admissions", response_model=list[AdmissionRead])
 async def list_admissions(db: AsyncSession = Depends(get_session)):
     result = await db.execute(select(Admission).order_by(Admission.id.desc()))
     return result.scalars().all()
 
-
+# -------------------------
+# Health and debug
+# -------------------------
 @app.get("/health")
 async def health():
     return {"status": "ok"}
 
 @app.get("/debug-version")
 def debug_version():
-    import models
+    import models  # local import to avoid circular issues at module import time
     return {"fields": list(models.Admission.__table__.columns.keys())}
 
+# -------------------------
+# Update admission by internal id (keeps explicit update endpoint)
+# -------------------------
 @app.patch("/admissions/id/{admission_id}", response_model=AdmissionRead)
 async def update_admission(
     admission_id: int,
@@ -154,30 +146,9 @@ async def update_admission(
     result = await db.execute(select(Admission).where(Admission.id == admission_id))
     adm = result.scalar_one_or_none()
     if not adm:
-        raise HTTPException(status_code=404, detail="Admission not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Admission not found")
 
     update_data = data.dict(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(adm, field, value)
-
-    await db.commit()
-    await db.refresh(adm)
-    return adm
-
-# use a descriptive path param name and string type
-@app.patch("/admissions/by-ticket/{ticket_number}", response_model=AdmissionRead)
-async def patch_admission_by_ticket(
-    ticket_number: str,
-    payload: AdmissionUpdate,
-    db: AsyncSession = Depends(get_session),
-):
-    logger.info("patch_admission_by_ticket called with ticket=%s", ticket_number)
-    q = await db.execute(select(Admission).where(Admission.ticket_number == ticket_number))
-    adm = q.scalars().first()
-    if not adm:
-        raise HTTPException(status_code=404, detail="Admission not found")
-
-    update_data = payload.dict(exclude_unset=True)
     for field, value in update_data.items():
         setattr(adm, field, value)
 

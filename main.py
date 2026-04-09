@@ -79,6 +79,46 @@ async def startup():
         await conn.run_sync(Base.metadata.create_all)
 
 
+from sqlalchemy.exc import IntegrityError
+
+@app.post("/admissions", response_model=AdmissionRead)
+async def create_or_upsert_admission(data: AdmissionCreate, db: AsyncSession = Depends(get_session)):
+    # Try to find existing by ticket_number
+    result = await db.execute(select(Admission).where(Admission.ticket_number == data.ticket_number))
+    existing = result.scalar_one_or_none()
+
+    if existing:
+        # Partial update: apply only provided fields
+        update_data = data.dict(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(existing, field, value)
+        db.add(existing)
+        await db.commit()
+        await db.refresh(existing)
+        return existing
+
+    # Create new
+    adm = Admission(**data.dict())
+    db.add(adm)
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        # Race condition: another process created it; return that record
+        result = await db.execute(select(Admission).where(Admission.ticket_number == data.ticket_number))
+        existing = result.scalar_one_or_none()
+        if existing:
+            return existing
+        raise HTTPException(status_code=500, detail="Could not create admission")
+    await db.refresh(adm)
+    return adm
+
+
+
+
+
+
+"""
 @app.post("/admissions", response_model=AdmissionRead)
 async def create_admission(data: AdmissionCreate, db: AsyncSession = Depends(get_session)):
     adm = Admission(**data.dict())
@@ -87,7 +127,7 @@ async def create_admission(data: AdmissionCreate, db: AsyncSession = Depends(get
     await db.refresh(adm)
     return adm
 
-
+"""
 
 @app.get("/admissions", response_model=list[AdmissionRead])
 async def list_admissions(db: AsyncSession = Depends(get_session)):

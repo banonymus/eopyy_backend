@@ -63,3 +63,36 @@ class Admission(Base):
 
     # Timestamps
     created_at = Column(TIMESTAMP, server_default=func.now())
+
+
+from sqlalchemy import Column, BigInteger, String, Text, DateTime, func
+from sqlalchemy.ext.declarative import declarative_base
+
+Base = declarative_base()
+
+class Discharge(Base):
+    __tablename__ = "discharges"
+
+    id = Column(BigInteger, primary_key=True)
+    ticket_number = Column(String)
+    profile_id = Column(String)
+    installation_code = Column(String)
+    operator_id = Column(String)
+    last_name = Column(String)
+    first_name = Column(String)
+    country_code = Column(String)
+    amka = Column(String)
+    dob_hl7 = Column(String)
+    sex_val = Column(String)
+    location_code = Column(String)
+    doctor_amka = Column(String)
+    admit_datetime = Column(String)
+    discharge_datetime = Column(Text)
+    alt_visit_id = Column(String)
+    icd10_code = Column(String)
+    icd10_desc = Column(String)
+    icd10_date = Column(String)
+    hl7_a03 = Column(Text)
+    raw_response = Column(Text)
+    status = Column(String)
+    created_at = Column(DateTime, server_default=func.now())

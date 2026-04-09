@@ -125,3 +125,60 @@ async def patch_admission_by_ticket(
 
 
 
+from fastapi import FastAPI, HTTPException, Depends
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from database import get_session
+from models import Discharge
+from schemas import DischargeCreate, DischargeRead, DischargeUpdate
+
+app = FastAPI()  # if already defined, just add the routes below
+
+@app.post("/discharges", response_model=DischargeRead)
+async def create_discharge(data: DischargeCreate, db: AsyncSession = Depends(get_session)):
+    dis = Discharge(**data.dict())
+    db.add(dis)
+    await db.commit()
+    await db.refresh(dis)
+    return dis
+
+@app.get("/discharges", response_model=list[DischargeRead])
+async def list_discharges(db: AsyncSession = Depends(get_session)):
+    result = await db.execute(select(Discharge).order_by(Discharge.id.desc()))
+    return result.scalars().all()
+
+@app.get("/discharges/by-ticket/{ticket_number}", response_model=DischargeRead)
+async def get_discharge_by_ticket(ticket_number: str, db: AsyncSession = Depends(get_session)):
+    q = await db.execute(select(Discharge).where(Discharge.ticket_number == ticket_number))
+    dis = q.scalars().first()
+    if not dis:
+        raise HTTPException(status_code=404, detail="Discharge not found")
+    return dis
+
+@app.patch("/discharges/by-ticket/{ticket_number}", response_model=DischargeRead)
+async def patch_discharge_by_ticket(
+    ticket_number: str,
+    payload: DischargeUpdate,
+    db: AsyncSession = Depends(get_session),
+):
+    q = await db.execute(select(Discharge).where(Discharge.ticket_number == ticket_number))
+    dis = q.scalars().first()
+    if not dis:
+        raise HTTPException(status_code=404, detail="Discharge not found")
+
+    update_data = payload.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(dis, field, value)
+
+    db.add(dis)
+    await db.commit()
+    await db.refresh(dis)
+    return dis
+
+@app.get("/discharges/{discharge_id}", response_model=DischargeRead)
+async def get_discharge_by_id(discharge_id: int, db: AsyncSession = Depends(get_session)):
+    result = await db.execute(select(Discharge).where(Discharge.id == discharge_id))
+    dis = result.scalar_one_or_none()
+    if not dis:
+        raise HTTPException(status_code=404, detail="Discharge not found")
+    return dis

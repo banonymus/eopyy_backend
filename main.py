@@ -20,6 +20,29 @@ API_KEY = os.getenv("API_KEY")  # loaded from Render env vars
 API_HEADER = "x-api-key"        # required header name
 EXPECTED_KEY = os.getenv("API_KEY")
 
+#------------------------debug-------------------------------------
+from fastapi import Request
+import logging
+logger = logging.getLogger("uvicorn.error")
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    logger.info("Incoming request %s %s", request.method, request.url.path)
+    logger.info("Headers: %s", dict(request.headers))
+    resp = await call_next(request)
+    logger.info("Response %s for %s %s", resp.status_code, request.method, request.url.path)
+    return resp
+
+@app.on_event("startup")
+async def startup_routes_dump():
+    for route in app.routes:
+        logger.info("Route: %s %s", getattr(route, "methods", None), route.path)
+
+
+
+
+#----------------------------end bebug-----------------------------------------
+
 """
 @app.middleware("http")
 async def verify_api_key(request: Request, call_next):

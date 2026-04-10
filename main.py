@@ -1,17 +1,25 @@
-
 # main.py
 import os
 import logging
-from typing import Optional
+from typing import Optional, List
 
 from fastapi import FastAPI, Depends, HTTPException, Request, status
+from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from database import get_session, engine
-from models import Base, Admission
-from schemas import AdmissionCreate, AdmissionRead, AdmissionUpdate
+from models import Base, Admission, Discharge
+from schemas import (
+    AdmissionCreate,
+    AdmissionRead,
+    AdmissionUpdate,
+    DischargeCreate,
+    DischargeRead,
+    DischargeUpdate,
+)
 from config import EXPECTED_KEY as CONFIG_EXPECTED_KEY, API_HEADER as CONFIG_API_HEADER
 
 logger = logging.getLogger("uvicorn.error")
@@ -21,24 +29,23 @@ app = FastAPI()
 # -------------------------
 # Configuration (single source of truth)
 # -------------------------
-# Configuration (single source of truth)
 EXPECTED_KEY: Optional[str] = os.getenv("API_KEY") or CONFIG_EXPECTED_KEY
-# Normalize header name to canonical form but allow override via env or CONFIG
 API_HEADER: str = (os.getenv("API_HEADER") or CONFIG_API_HEADER or "X-API-Key")
 
-# Middleware to verify API key
-from fastapi import Request, HTTPException, status
-
+# -------------------------
+# Single middleware to verify API key (case-insensitive)
+# -------------------------
 @app.middleware("http")
 async def verify_api_key(request: Request, call_next):
     # allow public endpoints
     if request.url.path in ("/health", "/docs", "/openapi.json"):
         return await call_next(request)
 
-    # check header case-insensitively and fall back to common header name
+    # check header case-insensitively and fall back to common names
     api_key = (
         request.headers.get(API_HEADER)
         or request.headers.get(API_HEADER.lower())
+        or request.headers.get(API_HEADER.upper())
         or request.headers.get("X-API-Key")
         or request.headers.get("x-api-key")
     )
@@ -57,39 +64,10 @@ if os.getenv("ENABLE_ROUTE_DUMP") == "1":
 
     @app.on_event("startup")
     async def startup_routes_dump():
+        logger.info("Resolved main.py: %s", __file__)
         for route in app.routes:
             logger.info("Route: %s %s", getattr(route, "methods", None), route.path)
 
-# -------------------------
-# Logging middleware
-# -------------------------
-@app.middleware("http")
-async def verify_api_key(request: Request, call_next):
-    if request.url.path in ("/health", "/docs", "/openapi.json"):
-        return await call_next(request)
-
-    # use configured header name (case-insensitive)
-    api_key = request.headers.get(API_HEADER) or request.headers.get(API_HEADER.upper()) or request.headers.get("X-API-Key")
-    if EXPECTED_KEY and api_key != EXPECTED_KEY:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
-
-    return await call_next(request)
-
-
-# -------------------------
-# API key middleware
-# -------------------------
-@app.middleware("http")
-async def verify_api_key(request: Request, call_next):
-    # Public endpoints that don't require API key
-    if request.url.path in ("/health", "/docs", "/openapi.json"):
-        return await call_next(request)
-
-    api_key = request.headers.get(API_HEADER) or request.headers.get(API_HEADER.upper()) or request.headers.get("X-API-Key")
-    if EXPECTED_KEY and api_key != EXPECTED_KEY:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
-
-    return await call_next(request)
 
 # -------------------------
 # DB startup: create tables
@@ -98,6 +76,7 @@ async def verify_api_key(request: Request, call_next):
 async def startup():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
 
 # -------------------------
 # Admissions endpoints
@@ -141,27 +120,17 @@ async def create_or_upsert_admission(data: AdmissionCreate, db: AsyncSession = D
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Could not create admission")
     await db.refresh(adm)
     # Return 201 for newly created resource
-    return adm
+    return JSONResponse(status_code=status.HTTP_201_CREATED, content=jsonable_encoder(adm))
+
 
 # -------------------------
 # List admissions
 # -------------------------
-@app.get("/admissions", response_model=list[AdmissionRead])
+@app.get("/admissions", response_model=List[AdmissionRead])
 async def list_admissions(db: AsyncSession = Depends(get_session)):
     result = await db.execute(select(Admission).order_by(Admission.id.desc()))
     return result.scalars().all()
 
-# -------------------------
-# Health and debug
-# -------------------------
-@app.get("/health")
-async def health():
-    return {"status": "ok"}
-
-@app.get("/debug-version")
-def debug_version():
-    import models  # local import to avoid circular issues at module import time
-    return {"fields": list(models.Admission.__table__.columns.keys())}
 
 # -------------------------
 # Update admission by internal id (keeps explicit update endpoint)
@@ -188,16 +157,32 @@ async def update_admission(
     return adm
 
 
+# -------------------------
+# Health and debug
+# -------------------------
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
 
-from fastapi import FastAPI, HTTPException, Depends
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from database import get_session
-from models import Discharge
-from schemas import DischargeCreate, DischargeRead, DischargeUpdate
 
-app = FastAPI()  # if already defined, just add the routes below
+@app.get("/debug-version")
+def debug_version():
+    # local import to avoid circular issues at module import time
+    import models  # noqa: F401
+    return {"fields": list(models.Admission.__table__.columns.keys())}
 
+
+# Optional header debug endpoint (temporary; remove in production)
+@app.post("/_debug-headers")
+async def debug_headers(request: Request):
+    headers = dict(request.headers)
+    logger.info("Incoming headers for debug: %s", headers)
+    return {"received_headers": list(headers.keys())}
+
+
+# -------------------------
+# Discharges endpoints
+# -------------------------
 @app.post("/discharges", response_model=DischargeRead)
 async def create_discharge(data: DischargeCreate, db: AsyncSession = Depends(get_session)):
     dis = Discharge(**data.dict())
@@ -206,10 +191,12 @@ async def create_discharge(data: DischargeCreate, db: AsyncSession = Depends(get
     await db.refresh(dis)
     return dis
 
-@app.get("/discharges", response_model=list[DischargeRead])
+
+@app.get("/discharges", response_model=List[DischargeRead])
 async def list_discharges(db: AsyncSession = Depends(get_session)):
     result = await db.execute(select(Discharge).order_by(Discharge.id.desc()))
     return result.scalars().all()
+
 
 @app.get("/discharges/by-ticket/{ticket_number}", response_model=DischargeRead)
 async def get_discharge_by_ticket(ticket_number: str, db: AsyncSession = Depends(get_session)):
@@ -218,6 +205,7 @@ async def get_discharge_by_ticket(ticket_number: str, db: AsyncSession = Depends
     if not dis:
         raise HTTPException(status_code=404, detail="Discharge not found")
     return dis
+
 
 @app.patch("/discharges/by-ticket/{ticket_number}", response_model=DischargeRead)
 async def patch_discharge_by_ticket(
@@ -238,6 +226,7 @@ async def patch_discharge_by_ticket(
     await db.commit()
     await db.refresh(dis)
     return dis
+
 
 @app.get("/discharges/{discharge_id}", response_model=DischargeRead)
 async def get_discharge_by_id(discharge_id: int, db: AsyncSession = Depends(get_session)):

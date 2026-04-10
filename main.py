@@ -21,8 +21,33 @@ app = FastAPI()
 # -------------------------
 # Configuration (single source of truth)
 # -------------------------
+# Configuration (single source of truth)
 EXPECTED_KEY: Optional[str] = os.getenv("API_KEY") or CONFIG_EXPECTED_KEY
-API_HEADER: str = os.getenv("API_HEADER") or CONFIG_API_HEADER or "x-api-key"
+# Normalize header name to canonical form but allow override via env or CONFIG
+API_HEADER: str = (os.getenv("API_HEADER") or CONFIG_API_HEADER or "X-API-Key")
+
+# Middleware to verify API key
+from fastapi import Request, HTTPException, status
+
+@app.middleware("http")
+async def verify_api_key(request: Request, call_next):
+    # allow public endpoints
+    if request.url.path in ("/health", "/docs", "/openapi.json"):
+        return await call_next(request)
+
+    # check header case-insensitively and fall back to common header name
+    api_key = (
+        request.headers.get(API_HEADER)
+        or request.headers.get(API_HEADER.lower())
+        or request.headers.get("X-API-Key")
+        or request.headers.get("x-api-key")
+    )
+
+    if EXPECTED_KEY and api_key != EXPECTED_KEY:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
+
+    return await call_next(request)
+
 
 # -------------------------
 # Optional route dump for debugging

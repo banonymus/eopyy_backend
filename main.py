@@ -235,3 +235,19 @@ async def get_discharge_by_id(discharge_id: int, db: AsyncSession = Depends(get_
     if not dis:
         raise HTTPException(status_code=404, detail="Discharge not found")
     return dis
+
+from sqlalchemy import func
+
+@app.get("/monitoring/summary")
+async def monitoring_summary(db: AsyncSession = Depends(get_session)):
+    q = await db.execute(
+        """
+        SELECT status, COUNT(*) AS count
+        FROM admissions
+        GROUP BY status
+        """
+    )
+    rows = q.fetchall()
+    return {
+        "statuses": [{ "status": r[0], "count": r[1] } for r in rows]
+    }

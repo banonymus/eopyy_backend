@@ -32,10 +32,12 @@ app = FastAPI()
 EXPECTED_KEY: Optional[str] = os.getenv("API_KEY") or CONFIG_EXPECTED_KEY
 API_HEADER: str = (os.getenv("API_HEADER") or CONFIG_API_HEADER or "X-API-Key")
 
+""""
 
 @app.get("/debug/api-key")
 async def debug_api_key():
     return {"API_KEY": os.getenv("API_KEY")}
+"""
 
 
 # -------------------------

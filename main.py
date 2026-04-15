@@ -531,3 +531,44 @@ async def monitoring_dashboard_success(db: AsyncSession = Depends(get_session)):
     html += "</table>"
 
     return HTMLResponse(html)
+
+@app.get("/monitoring", response_class=HTMLResponse)
+async def monitoring_index():
+    html = """
+    <html>
+    <head>
+        <title>Monitoring Index</title>
+        <style>
+            body { font-family: Arial; padding: 20px; background: #f5f5f5; }
+            .card {
+                background: white;
+                padding: 20px;
+                border-radius: 8px;
+                max-width: 600px;
+                margin: auto;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            h1 { text-align: center; }
+            ul { font-size: 18px; }
+            li { margin-bottom: 10px; }
+            a { text-decoration: none; color: #0066cc; }
+            a:hover { text-decoration: underline; }
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <h1>EOPYY Monitoring</h1>
+            <ul>
+                <li><a href="/monitoring/dashboard">Dashboard</a></li>
+                <li><a href="/monitoring/queue">Queue</a></li>
+                <li><a href="/monitoring/worker-health">Worker Health</a></li>
+                <li><a href="/monitoring/last-errors">Last Errors (JSON)</a></li>
+                <li><a href="/monitoring/last-success">Last Success (JSON)</a></li>
+                <li><a href="/monitoring/dashboard/errors">Error Table</a></li>
+                <li><a href="/monitoring/dashboard/success">Success Table</a></li>
+            </ul>
+        </div>
+    </body>
+    </html>
+    """
+    return HTMLResponse(html)

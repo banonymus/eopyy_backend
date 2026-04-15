@@ -572,3 +572,8 @@ async def monitoring_index():
     </html>
     """
     return HTMLResponse(html)
+
+
+@app.get("/debug/api-key")
+async def debug_api_key():
+    return {"API_KEY": os.getenv("API_KEY")}

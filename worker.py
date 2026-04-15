@@ -8,6 +8,8 @@ import logging
 from hl7_builder_worker import build_hl7_message
 from old_eopyy_client import submit_hl7
 from discarge_eopyy_client import submit_discarge_hl7
+from email_alerts import send_error_email
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("eopyy-worker")
@@ -72,19 +74,49 @@ async def process_row(conn, row):
 
         logger.info(f"[{ticket}] Completed successfully")
 
+
     except Exception as e:
+
+        error_msg = str(e)
+
         logger.exception(f"[{ticket}] Error during processing")
+
+        # -------------------------
+
+        # EMAIL ALERT
+
+        # -------------------------
+
+        send_error_email(ticket, error_msg)
+
+        # -------------------------
+
+        # SAVE ERROR IN DB
+
+        # -------------------------
+
         await conn.execute(
+
             """
+
             UPDATE admissions
+
             SET status='error',
+
                 raw_response=$2,
+
                 updated_at=NOW()
+
             WHERE id=$1
+
             """,
+
             row_id,
-            json.dumps({"error": str(e)}, ensure_ascii=False),
+
+            json.dumps({"error": error_msg}, ensure_ascii=False),
+
         )
+
 
 async def worker_loop():
     conn = await asyncpg.connect(DB_URL)
@@ -100,6 +132,20 @@ async def worker_loop():
                 LIMIT 20
                 """
             )
+            # -------------------------
+            # HEARTBEAT (τρέχει πάντα)
+            # -------------------------
+            await conn.execute("""
+                            UPDATE worker_heartbeat
+                            SET last_beat = NOW()
+                            WHERE id = 1
+                        """)
+
+            await conn.execute("""
+                UPDATE worker_heartbeat
+                SET last_beat = NOW()
+                WHERE id = 1
+            """)
 
             if not rows:
                 await asyncio.sleep(5)
@@ -115,3 +161,5 @@ async def worker_loop():
 
 if __name__ == "__main__":
     asyncio.run(worker_loop())
+
+

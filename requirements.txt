@@ -9,3 +9,4 @@ alembic
 requests
 email-validator
 jinja2
+lxml

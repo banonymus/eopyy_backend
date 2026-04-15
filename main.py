@@ -251,3 +251,30 @@ async def monitoring_summary(db: AsyncSession = Depends(get_session)):
     return {
         "statuses": [{ "status": r[0], "count": r[1] } for r in rows]
     }
+
+from sqlalchemy import text
+
+@app.get("/monitoring/last-errors")
+async def monitoring_last_errors(limit: int = 20, db: AsyncSession = Depends(get_session)):
+    q = await db.execute(
+        text("""
+            SELECT id, ticket_number, status, raw_response, updated_at
+            FROM admissions
+            WHERE status = 'error'
+            ORDER BY updated_at DESC
+            LIMIT :limit
+        """),
+        {"limit": limit}
+    )
+    rows = q.fetchall()
+
+    return [
+        {
+            "id": r.id,
+            "ticket_number": r.ticket_number,
+            "status": r.status,
+            "raw_response": r.raw_response,
+            "updated_at": r.updated_at,
+        }
+        for r in rows
+    ]

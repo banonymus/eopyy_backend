@@ -32,22 +32,48 @@ app = FastAPI()
 EXPECTED_KEY: Optional[str] = os.getenv("API_KEY") or CONFIG_EXPECTED_KEY
 API_HEADER: str = (os.getenv("API_HEADER") or CONFIG_API_HEADER or "X-API-Key")
 
+
+@app.get("/debug/api-key")
+async def debug_api_key():
+    return {"API_KEY": os.getenv("API_KEY")}
+
+
 # -------------------------
 # Single middleware to verify API key (case-insensitive)
 # -------------------------
 @app.middleware("http")
 async def verify_api_key(request: Request, call_next):
-    # allow public endpoints
-    if request.url.path in ("/health", "/docs", "/openapi.json"):
+    path = request.url.path
+
+    # Public endpoints
+    PUBLIC_PATHS = {
+        "/health",
+        "/docs",
+        "/openapi.json",
+        "/debug/api-key",
+        "/monitoring",
+        "/monitoring/",
+        "/monitoring/dashboard",
+        "/monitoring/dashboard/errors",
+        "/monitoring/dashboard/success",
+        "/monitoring/queue",
+        "/monitoring/worker-health",
+        "/monitoring/last-errors",
+        "/monitoring/last-success",
+    }
+
+    # Allow monitoring without API key
+    if path in PUBLIC_PATHS or path.startswith("/monitoring"):
         return await call_next(request)
 
-    # check header case-insensitively and fall back to common names
+    # Read API key from headers OR query params
     api_key = (
         request.headers.get(API_HEADER)
         or request.headers.get(API_HEADER.lower())
         or request.headers.get(API_HEADER.upper())
         or request.headers.get("X-API-Key")
         or request.headers.get("x-api-key")
+        or request.query_params.get("api_key")   # <-- THIS FIXES YOUR ISSUE
     )
 
     if EXPECTED_KEY and api_key != EXPECTED_KEY:
@@ -574,6 +600,4 @@ async def monitoring_index():
     return HTMLResponse(html)
 
 
-@app.get("/debug/api-key")
-async def debug_api_key():
-    return {"API_KEY": os.getenv("API_KEY")}
+

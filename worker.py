@@ -227,14 +227,28 @@ async def worker_loop():
 
     try:
         while True:
-            rows = await conn.fetch(
-                """
-                SELECT * FROM admissions
-                WHERE status='pending'
-                ORDER BY created_at
-                LIMIT 20
-                """
-            )
+            try:
+                rows = await conn.fetch(
+                    """
+                    SELECT * FROM admissions
+                    WHERE status='pending'
+                    ORDER BY created_at
+                    LIMIT 20
+                    """
+                )
+
+            except asyncpg.InvalidCachedStatementError:
+                logger.warning("Invalid cached statement — reconnecting to DB")
+
+                try:
+                    await conn.close()
+                except:
+                    pass
+
+                conn = await asyncpg.connect(DB_URL)
+
+                # skip this loop iteration and retry cleanly
+                continue
 
             # heartbeat
             await conn.execute("""

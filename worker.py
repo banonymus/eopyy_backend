@@ -4,6 +4,7 @@ import asyncpg
 import os
 import json
 import logging
+import re
 
 from hl7_builder_worker import build_hl7_message
 from old_eopyy_client import submit_hl7
@@ -15,6 +16,31 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("eopyy-worker")
 
 DB_URL = os.getenv("DATABASE_URL")
+
+
+# ---------------------------------------------------------
+# HL7 PARSER (MSA + ERR)
+# ---------------------------------------------------------
+def parse_hl7_response(raw):
+    """
+    Extract MSA code, message ID, and ERR details from HL7.
+    """
+    # MSA|AA|12345  or  MSA|AR|12345  or  MSA|AE|12345
+    msa_match = re.search(r"MSA\|([A-Z]{2})\|([0-9]+)", raw)
+    msa_code = msa_match.group(1) if msa_match else None
+    message_id = msa_match.group(2) if msa_match else None
+
+    # ERR||PID^19|102|E|331
+    err_match = re.search(r"ERR\|\|([A-Z0-9\^]+)\|([0-9]+)\|([A-Z])\|([0-9]+)", raw)
+    err = {
+        "location": err_match.group(1) if err_match else None,
+        "code": err_match.group(2) if err_match else None,
+        "severity": err_match.group(3) if err_match else None,
+        "eopyy_code": err_match.group(4) if err_match else None,
+    }
+
+    return msa_code, message_id, err
+
 
 async def process_row(conn, row):
     row_id = row["id"]
@@ -59,9 +85,17 @@ async def process_row(conn, row):
             raw_response = submit_hl7(hl7)
             response_field = "raw_response"
 
-        # 3. Save result
-        if "ACK" in raw_response or "AA" in raw_response:
-            # accepted
+        # ---------------------------------------------------------
+        # 3. Parse HL7 response (NEW LOGIC)
+        # ---------------------------------------------------------
+        msa_code, message_id, err = parse_hl7_response(raw_response)
+        logger.info(f"[{ticket}] HL7 MSA={msa_code}, ERR={err}")
+
+        # ---------------------------------------------------------
+        # 4. Save result based on MSA code (NEW LOGIC)
+        # ---------------------------------------------------------
+        if msa_code == "AA":
+            # SUCCESS
             await conn.execute(
                 f"""
                 UPDATE admissions
@@ -75,64 +109,63 @@ async def process_row(conn, row):
             )
             logger.info(f"[{ticket}] Completed successfully")
 
-        else:
-            # rejected by EOPYY
+        elif msa_code == "AR":
+            # REJECTED
             await conn.execute(
                 f"""
                 UPDATE admissions
                 SET status='rejected',
+                    error_code=$3,
+                    error_details=$4,
                     {response_field}=$2,
                     updated_at=NOW()
                 WHERE id=$1
                 """,
                 row_id,
                 raw_response,
+                err["eopyy_code"],
+                json.dumps(err, ensure_ascii=False),
             )
             logger.warning(f"[{ticket}] Rejected by EOPYY")
             send_error_email(ticket, f"EOPYY rejected the admission:\n\n{raw_response}")
 
-
+        else:
+            # ERROR (AE or unknown)
+            await conn.execute(
+                f"""
+                UPDATE admissions
+                SET status='error',
+                    error_code=$3,
+                    error_details=$4,
+                    {response_field}=$2,
+                    updated_at=NOW()
+                WHERE id=$1
+                """,
+                row_id,
+                raw_response,
+                err["eopyy_code"],
+                json.dumps(err, ensure_ascii=False),
+            )
+            logger.error(f"[{ticket}] Error from EOPYY")
+            send_error_email(ticket, f"EOPYY returned an error:\n\n{raw_response}")
 
     except Exception as e:
-
         error_msg = str(e)
 
         logger.exception(f"[{ticket}] Error during processing")
 
-        # -------------------------
-
-        # EMAIL ALERT
-
-        # -------------------------
-
         send_error_email(ticket, error_msg)
 
-        # -------------------------
-
-        # SAVE ERROR IN DB
-
-        # -------------------------
-
         await conn.execute(
-
             """
-
             UPDATE admissions
-
             SET status='error',
-
                 raw_response=$2,
-
                 updated_at=NOW()
-
             WHERE id=$1
-
             """,
-
             row_id,
-
             json.dumps({"error": error_msg}, ensure_ascii=False),
-
         )
 
 
@@ -150,15 +183,8 @@ async def worker_loop():
                 LIMIT 20
                 """
             )
-            # -------------------------
-            # HEARTBEAT (τρέχει πάντα)
-            # -------------------------
-            await conn.execute("""
-                            UPDATE worker_heartbeat
-                            SET last_beat = NOW()
-                            WHERE id = 1
-                        """)
 
+            # HEARTBEAT
             await conn.execute("""
                 UPDATE worker_heartbeat
                 SET last_beat = NOW()
@@ -177,7 +203,6 @@ async def worker_loop():
     finally:
         await conn.close()
 
+
 if __name__ == "__main__":
     asyncio.run(worker_loop())
-
-

@@ -1,9 +1,12 @@
 from fastapi import APIRouter, HTTPException
-from db import async_session, Admission
 from sqlalchemy import select
 import os
 import httpx
 import logging
+from database import async_session
+from models import Admission
+
+
 
 router = APIRouter()
 logger = logging.getLogger("retry-endpoint")

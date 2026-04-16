@@ -10,3 +10,4 @@ requests
 email-validator
 jinja2
 lxml
+httpx

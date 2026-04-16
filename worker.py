@@ -5,32 +5,30 @@ import os
 import json
 import logging
 import re
+import httpx
 
 from hl7_builder_worker import build_hl7_message
 from old_eopyy_client import submit_hl7
 from discarge_eopyy_client import submit_discarge_hl7
 from email_alerts import send_error_email
 
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("eopyy-worker")
 
 DB_URL = os.getenv("DATABASE_URL")
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
 
 # ---------------------------------------------------------
-# HL7 PARSER (MSA + ERR)
+# HL7 PARSER (MSA + ERR + message_id)
 # ---------------------------------------------------------
 def parse_hl7_response(raw):
-    """
-    Extract MSA code, message ID, and ERR details from HL7.
-    """
-    # MSA|AA|12345  or  MSA|AR|12345  or  MSA|AE|12345
+    # Example: MSA|AR|2026000158000
     msa_match = re.search(r"MSA\|([A-Z]{2})\|([0-9]+)", raw)
     msa_code = msa_match.group(1) if msa_match else None
     message_id = msa_match.group(2) if msa_match else None
 
-    # ERR||PID^19|102|E|331
+    # Example: ERR||PID^19|102|E|331
     err_match = re.search(r"ERR\|\|([A-Z0-9\^]+)\|([0-9]+)\|([A-Z])\|([0-9]+)", raw)
     err = {
         "location": err_match.group(1) if err_match else None,
@@ -42,6 +40,26 @@ def parse_hl7_response(raw):
     return msa_code, message_id, err
 
 
+# ---------------------------------------------------------
+# WEBHOOK SENDER
+# ---------------------------------------------------------
+async def send_webhook(event_type: str, payload: dict):
+    if not WEBHOOK_URL:
+        return
+
+    async with httpx.AsyncClient(timeout=10) as client:
+        try:
+            await client.post(
+                WEBHOOK_URL,
+                json={"event": event_type, "data": payload},
+            )
+        except Exception as e:
+            logger.error(f"Webhook failed: {e}")
+
+
+# ---------------------------------------------------------
+# PROCESS ONE ROW
+# ---------------------------------------------------------
 async def process_row(conn, row):
     row_id = row["id"]
     ticket = row["ticket_number"]
@@ -61,7 +79,7 @@ async def process_row(conn, row):
     try:
         data = dict(row)
 
-        # 1. Build HL7 (A01 ή A03)
+        # 1. Build HL7
         hl7 = build_hl7_message(data)
         logger.info(f"[{ticket}] HL7 built, length={len(hl7)}")
 
@@ -85,15 +103,11 @@ async def process_row(conn, row):
             raw_response = submit_hl7(hl7)
             response_field = "raw_response"
 
-        # ---------------------------------------------------------
-        # 3. Parse HL7 response (NEW LOGIC)
-        # ---------------------------------------------------------
+        # 3. Parse HL7
         msa_code, message_id, err = parse_hl7_response(raw_response)
-        logger.info(f"[{ticket}] HL7 MSA={msa_code}, ERR={err}")
+        logger.info(f"[{ticket}] HL7 MSA={msa_code}, message_id={message_id}, ERR={err}")
 
-        # ---------------------------------------------------------
-        # 4. Save result based on MSA code (NEW LOGIC)
-        # ---------------------------------------------------------
+        # 4. Status mapping
         if msa_code == "AA":
             # SUCCESS
             await conn.execute(
@@ -107,6 +121,15 @@ async def process_row(conn, row):
                 row_id,
                 raw_response,
             )
+
+            await send_webhook(
+                "admission_completed",
+                {
+                    "ticket_number": ticket,
+                    "message_id": message_id,
+                },
+            )
+
             logger.info(f"[{ticket}] Completed successfully")
 
         elif msa_code == "AR":
@@ -126,6 +149,15 @@ async def process_row(conn, row):
                 err["eopyy_code"],
                 json.dumps(err, ensure_ascii=False),
             )
+
+            await send_webhook(
+                "admission_rejected",
+                {
+                    "ticket_number": ticket,
+                    "error": err,
+                },
+            )
+
             logger.warning(f"[{ticket}] Rejected by EOPYY")
             send_error_email(ticket, f"EOPYY rejected the admission:\n\n{raw_response}")
 
@@ -146,6 +178,15 @@ async def process_row(conn, row):
                 err["eopyy_code"],
                 json.dumps(err, ensure_ascii=False),
             )
+
+            await send_webhook(
+                "worker_error",
+                {
+                    "ticket_number": ticket,
+                    "error": err,
+                },
+            )
+
             logger.error(f"[{ticket}] Error from EOPYY")
             send_error_email(ticket, f"EOPYY returned an error:\n\n{raw_response}")
 
@@ -168,7 +209,18 @@ async def process_row(conn, row):
             json.dumps({"error": error_msg}, ensure_ascii=False),
         )
 
+        await send_webhook(
+            "worker_error",
+            {
+                "ticket_number": ticket,
+                "exception": error_msg,
+            },
+        )
 
+
+# ---------------------------------------------------------
+# MAIN LOOP
+# ---------------------------------------------------------
 async def worker_loop():
     conn = await asyncpg.connect(DB_URL)
     logger.info("Worker connected to DB")
@@ -184,7 +236,7 @@ async def worker_loop():
                 """
             )
 
-            # HEARTBEAT
+            # heartbeat
             await conn.execute("""
                 UPDATE worker_heartbeat
                 SET last_beat = NOW()

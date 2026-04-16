@@ -22,11 +22,14 @@ from schemas import (
 )
 from config import EXPECTED_KEY as CONFIG_EXPECTED_KEY, API_HEADER as CONFIG_API_HEADER
 from routes.retry import router as retry_router
+from fastapi import FastAPI
+from routes.webhooks import router as webhook_router
 
 logger = logging.getLogger("uvicorn.error")
 
 app = FastAPI()
 app.include_router(retry_router)
+app.include_router(webhook_router)
 
 # -------------------------
 # Configuration (single source of truth)

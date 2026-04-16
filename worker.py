@@ -60,19 +60,37 @@ async def process_row(conn, row):
             response_field = "raw_response"
 
         # 3. Save result
-        await conn.execute(
-            f"""
-            UPDATE admissions
-            SET status='completed',
-                {response_field}=$2,
-                updated_at=NOW()
-            WHERE id=$1
-            """,
-            row_id,
-            raw_response,
-        )
+        if "ACK" in raw_response or "AA" in raw_response:
+            # accepted
+            await conn.execute(
+                f"""
+                UPDATE admissions
+                SET status='completed',
+                    {response_field}=$2,
+                    updated_at=NOW()
+                WHERE id=$1
+                """,
+                row_id,
+                raw_response,
+            )
+            logger.info(f"[{ticket}] Completed successfully")
 
-        logger.info(f"[{ticket}] Completed successfully")
+        else:
+            # rejected by EOPYY
+            await conn.execute(
+                f"""
+                UPDATE admissions
+                SET status='rejected',
+                    {response_field}=$2,
+                    updated_at=NOW()
+                WHERE id=$1
+                """,
+                row_id,
+                raw_response,
+            )
+            logger.warning(f"[{ticket}] Rejected by EOPYY")
+            send_error_email(ticket, f"EOPYY rejected the admission:\n\n{raw_response}")
+
 
 
     except Exception as e:

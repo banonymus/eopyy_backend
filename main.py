@@ -264,6 +264,28 @@ async def get_discharge_by_id(discharge_id: int, db: AsyncSession = Depends(get_
         raise HTTPException(status_code=404, detail="Discharge not found")
     return dis
 
+
+@app.post("/admissions/{ticket_number}/retry")
+async def retry_admission(ticket_number: str, db: AsyncSession = Depends(get_session)):
+    q = await db.execute(
+        text("""
+            UPDATE admissions
+            SET status='pending', updated_at=NOW()
+            WHERE ticket_number = :ticket
+              AND status = 'rejected'
+            RETURNING id
+        """),
+        {"ticket": ticket_number}
+    )
+    row = q.fetchone()
+
+    if not row:
+        raise HTTPException(400, "Admission not found or not rejected")
+
+    return {"message": "Admission set to pending again", "ticket": ticket_number}
+
+
+
 from sqlalchemy import func
 
 @app.get("/monitoring/summary")
@@ -372,6 +394,9 @@ async def monitoring_dashboard(db: AsyncSession = Depends(get_session)):
     q4 = await db.execute(text("SELECT COUNT(*) FROM admissions WHERE status='error'"))
     errors = q4.scalar()
 
+    q5 = await db.execute(text("SELECT COUNT(*) FROM admissions WHERE status='rejected'"))
+    rejected = q5.scalar()
+
     html = f"""
     <html>
     <head>
@@ -416,6 +441,7 @@ async def monitoring_dashboard(db: AsyncSession = Depends(get_session)):
             <div class="stat">{processing}<div class="label">Processing</div></div>
             <div class="stat">{completed}<div class="label">Completed</div></div>
             <div class="stat">{errors}<div class="label">Errors</div></div>
+            <div class="stat">{rejected}<div class="label">Rejected</div></div>
         </div>
 
         <div class="card">
@@ -492,7 +518,7 @@ async def monitoring_dashboard(db: AsyncSession = Depends(get_session)):
         <title>EOPYY Dashboard</title>
         <style>
             body {{ font-family: Arial; padding: 20px; background: #f5f5f5; }}
-            .grid {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }}
+            .grid {{ display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; }}
             .stat {{ background: #fff; padding: 20px; border-radius: 8px; text-align: center; font-size: 22px; font-weight: bold; }}
             .label {{ font-size: 14px; color: #666; }}
             .card {{ background: white; padding: 20px; margin-top: 30px; border-radius: 8px; }}

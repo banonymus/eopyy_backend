@@ -73,6 +73,10 @@ async def verify_api_key(request: Request, call_next):
     if path in PUBLIC_PATHS or path.startswith("/monitoring"):
         return await call_next(request)
 
+    # 🔥 Allow webhooks without API key
+    if path.startswith("/webhooks/"):
+        return await call_next(request)
+
     # Read API key from headers OR query params
     api_key = (
         request.headers.get(API_HEADER)
@@ -80,13 +84,14 @@ async def verify_api_key(request: Request, call_next):
         or request.headers.get(API_HEADER.upper())
         or request.headers.get("X-API-Key")
         or request.headers.get("x-api-key")
-        or request.query_params.get("api_key")   # <-- THIS FIXES YOUR ISSUE
+        or request.query_params.get("api_key")
     )
 
     if EXPECTED_KEY and api_key != EXPECTED_KEY:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
 
     return await call_next(request)
+
 
 
 # -------------------------

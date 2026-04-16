@@ -227,6 +227,15 @@ async def worker_loop():
 
     try:
         while True:
+
+            # HEARTBEAT
+            await conn.execute("""
+                UPDATE worker_heartbeat
+                SET last_beat = NOW()
+                WHERE id = 1
+            """)
+
+            # --- PATCHED FETCH BLOCK ---
             try:
                 rows = await conn.fetch(
                     """
@@ -246,16 +255,8 @@ async def worker_loop():
                     pass
 
                 conn = await asyncpg.connect(DB_URL)
-
-                # skip this loop iteration and retry cleanly
                 continue
-
-            # heartbeat
-            await conn.execute("""
-                UPDATE worker_heartbeat
-                SET last_beat = NOW()
-                WHERE id = 1
-            """)
+            # ----------------------------
 
             if not rows:
                 await asyncio.sleep(5)
@@ -268,6 +269,7 @@ async def worker_loop():
 
     finally:
         await conn.close()
+
 
 
 if __name__ == "__main__":

@@ -164,11 +164,22 @@ async def create_or_upsert_admission(data: AdmissionCreate, db: AsyncSession = D
 # -------------------------
 # List admissions
 # -------------------------
+"""
 @app.get("/admissions", response_model=List[AdmissionRead])
 async def list_admissions(db: AsyncSession = Depends(get_session)):
     result = await db.execute(select(Admission).order_by(Admission.id.desc()))
     return result.scalars().all()
+"""
 
+
+
+@router.get("/admissions/{ticket_number}", response_model=AdmissionRead)
+async def get_admission(ticket_number: str, db: AsyncSession = Depends(get_session)):
+    stmt = select(Admission).where(Admission.ticket_number == ticket_number)
+    admission = await db.scalar(stmt)
+    if admission is None:
+        raise HTTPException(status_code=404, detail="Admission not found")
+    return admission
 
 # -------------------------
 # Update admission by internal id (keeps explicit update endpoint)

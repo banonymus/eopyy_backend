@@ -173,7 +173,7 @@ async def list_admissions(db: AsyncSession = Depends(get_session)):
 
 
 
-@router.get("/admissions/{ticket_number}", response_model=AdmissionRead)
+@app.get("/admissions/{ticket_number}", response_model=AdmissionRead)
 async def get_admission(ticket_number: str, db: AsyncSession = Depends(get_session)):
     stmt = select(Admission).where(Admission.ticket_number == ticket_number)
     admission = await db.scalar(stmt)

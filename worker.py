@@ -310,12 +310,21 @@ async def worker_loop():
             """)
 
             # Fetch pending discharges
-            discharges = await conn.fetch("""
-                SELECT * FROM discharges
-                WHERE status='pending'
-                ORDER BY created_at
-                LIMIT 20
-            """)
+            try:
+                discharges = await conn.fetch("""
+                    SELECT * FROM discharges
+                    WHERE status='pending'
+                    ORDER BY created_at
+                    LIMIT 20
+                """)
+            except asyncpg.InvalidCachedStatementError:
+                logger.warning("Invalid cached statement (discharges) — reconnecting to DB")
+                try:
+                    await conn.close()
+                except:
+                    pass
+                conn = await asyncpg.connect(DB_URL)
+                continue
 
             if not admissions and not discharges:
                 await asyncio.sleep(5)

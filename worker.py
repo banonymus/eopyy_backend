@@ -187,7 +187,12 @@ async def process_discharge_row(conn, row):
 
         hl7 = build_hl7_message(data)
         await conn.execute(
-            "UPDATE discharges SET hl7=$2, updated_at=NOW() WHERE id=$1",
+            """
+            UPDATE discharges
+            SET hl7_a03=$2,
+                updated_at=NOW()
+            WHERE id=$1
+            """,
             row_id,
             hl7,
         )

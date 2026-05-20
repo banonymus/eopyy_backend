@@ -13,10 +13,19 @@ services:
         value: X-API-Key
 
   - type: worker
-    name: eopyy-worker
+    name: eopyy-worker-realtime
     env: python
     buildCommand: pip install -r requirements.txt
     startCommand: python worker.py
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase: neondb
+
+  - type: worker
+    name: eopyy-worker-batch
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m app.worker_batch
     envVars:
       - key: DATABASE_URL
         fromDatabase: neondb

@@ -71,3 +71,32 @@ async def generate_hl7_file(discharges, out_path):
         await f.write(f"BTS|{len(discharges)}||{total_amount:.2f}\n")
 
     return out_path
+
+def fmt_date(dt):
+    if not dt:
+        return ""
+
+    # Already datetime object
+    if isinstance(dt, datetime.datetime):
+        return dt.strftime("%Y%m%d%H%M")
+
+    # Try ISO format first
+    try:
+        return datetime.datetime.fromisoformat(dt).strftime("%Y%m%d%H%M")
+    except:
+        pass
+
+    # Try EOPYY format: YYYYMMDDHHMMSS
+    try:
+        return datetime.datetime.strptime(dt, "%Y%m%d%H%M%S").strftime("%Y%m%d%H%M")
+    except:
+        pass
+
+    # Try YYYYMMDD
+    try:
+        return datetime.datetime.strptime(dt, "%Y%m%d").strftime("%Y%m%d%H%M")
+    except:
+        pass
+
+    # Fallback: return raw
+    return dt[:12]

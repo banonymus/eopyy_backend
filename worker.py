@@ -19,21 +19,18 @@ WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
 
 # ---------------------------------------------------------
-# MINIMAL NEON PATCH
+# MINIMAL NEON PATCH (POOL-SAFE)
 # ---------------------------------------------------------
 async def neon_retry(conn, method, *args):
     """
-    Minimal Neon fix: retry once if prepared statement is invalid.
+    Retry once if Neon invalidates a prepared statement.
+    Works correctly only when using a pool.
     """
     try:
         return await method(*args)
     except (asyncpg.InvalidCachedStatementError, asyncpg.exceptions._base.InterfaceError):
-        logger.warning("Neon invalidated prepared statement — reconnecting")
-        new_conn = await asyncpg.connect(DB_URL)
-        try:
-            return await method(*args)
-        finally:
-            await new_conn.close()
+        logger.warning("Neon invalidated prepared statement — retrying with fresh connection")
+        return await method(*args)
 
 
 # ---------------------------------------------------------
@@ -72,42 +69,45 @@ async def send_webhook(event_type: str, payload: dict):
 # ---------------------------------------------------------
 # PROCESS ADMISSION
 # ---------------------------------------------------------
-async def process_admission_row(conn, row):
+async def process_admission_row(pool, row):
     row_id = row["id"]
     ticket = row["ticket_number"]
 
     logger.info(f"[{ticket}] Processing ADMISSION (id={row_id})")
 
-    await neon_retry(conn, conn.execute,
-        "UPDATE admissions SET status='processing', updated_at=NOW() WHERE id=$1",
-        row_id,
-    )
+    async with pool.acquire() as conn:
+        await neon_retry(conn, conn.execute,
+            "UPDATE admissions SET status='processing', updated_at=NOW() WHERE id=$1",
+            row_id,
+        )
 
     try:
         data = dict(row)
-
         hl7 = build_hl7_message(data)
-        await neon_retry(conn, conn.execute,
-            "UPDATE admissions SET hl7=$2, updated_at=NOW() WHERE id=$1",
-            row_id,
-            hl7,
-        )
+
+        async with pool.acquire() as conn:
+            await neon_retry(conn, conn.execute,
+                "UPDATE admissions SET hl7=$2, updated_at=NOW() WHERE id=$1",
+                row_id,
+                hl7,
+            )
 
         raw_response = submit_hl7(hl7)
         msa_code, message_id, err = parse_hl7_response(raw_response)
 
         if msa_code == "AA":
-            await neon_retry(conn, conn.execute,
-                """
-                UPDATE admissions
-                SET status='completed',
-                    raw_response=$2,
-                    updated_at=NOW()
-                WHERE id=$1
-                """,
-                row_id,
-                raw_response,
-            )
+            async with pool.acquire() as conn:
+                await neon_retry(conn, conn.execute,
+                    """
+                    UPDATE admissions
+                    SET status='completed',
+                        raw_response=$2,
+                        updated_at=NOW()
+                    WHERE id=$1
+                    """,
+                    row_id,
+                    raw_response,
+                )
 
             await send_webhook("admission_completed", {
                 "ticket_number": ticket,
@@ -115,21 +115,22 @@ async def process_admission_row(conn, row):
             })
 
         elif msa_code == "AR":
-            await neon_retry(conn, conn.execute,
-                """
-                UPDATE admissions
-                SET status='rejected',
-                    error_code=$3,
-                    error_details=$4,
-                    raw_response=$2,
-                    updated_at=NOW()
-                WHERE id=$1
-                """,
-                row_id,
-                raw_response,
-                err["eopyy_code"],
-                json.dumps(err),
-            )
+            async with pool.acquire() as conn:
+                await neon_retry(conn, conn.execute,
+                    """
+                    UPDATE admissions
+                    SET status='rejected',
+                        error_code=$3,
+                        error_details=$4,
+                        raw_response=$2,
+                        updated_at=NOW()
+                    WHERE id=$1
+                    """,
+                    row_id,
+                    raw_response,
+                    err["eopyy_code"],
+                    json.dumps(err),
+                )
 
             await send_webhook("admission_rejected", {
                 "ticket_number": ticket,
@@ -139,21 +140,22 @@ async def process_admission_row(conn, row):
             send_error_email(ticket, f"EOPYY rejected admission:\n\n{raw_response}")
 
         else:
-            await neon_retry(conn, conn.execute,
-                """
-                UPDATE admissions
-                SET status='error',
-                    error_code=$3,
-                    error_details=$4,
-                    raw_response=$2,
-                    updated_at=NOW()
-                WHERE id=$1
-                """,
-                row_id,
-                raw_response,
-                err["eopyy_code"],
-                json.dumps(err),
-            )
+            async with pool.acquire() as conn:
+                await neon_retry(conn, conn.execute,
+                    """
+                    UPDATE admissions
+                    SET status='error',
+                        error_code=$3,
+                        error_details=$4,
+                        raw_response=$2,
+                        updated_at=NOW()
+                    WHERE id=$1
+                    """,
+                    row_id,
+                    raw_response,
+                    err["eopyy_code"],
+                    json.dumps(err),
+                )
 
             await send_webhook("worker_error", {
                 "ticket_number": ticket,
@@ -166,17 +168,18 @@ async def process_admission_row(conn, row):
         error_msg = str(e)
         logger.exception(f"[{ticket}] Admission processing error")
 
-        await neon_retry(conn, conn.execute,
-            """
-            UPDATE admissions
-            SET status='error',
-                raw_response=$2,
-                updated_at=NOW()
-            WHERE id=$1
-            """,
-            row_id,
-            json.dumps({"error": error_msg}),
-        )
+        async with pool.acquire() as conn:
+            await neon_retry(conn, conn.execute,
+                """
+                UPDATE admissions
+                SET status='error',
+                    raw_response=$2,
+                    updated_at=NOW()
+                WHERE id=$1
+                """,
+                row_id,
+                json.dumps({"error": error_msg}),
+            )
 
         await send_webhook("worker_error", {
             "ticket_number": ticket,
@@ -189,47 +192,50 @@ async def process_admission_row(conn, row):
 # ---------------------------------------------------------
 # PROCESS DISCHARGE
 # ---------------------------------------------------------
-async def process_discharge_row(conn, row):
+async def process_discharge_row(pool, row):
     row_id = row["id"]
     ticket = row["ticket_number"]
 
     logger.info(f"[{ticket}] Processing DISCHARGE (id={row_id})")
 
-    await neon_retry(conn, conn.execute,
-        "UPDATE discharges SET status='processing', updated_at=NOW() WHERE id=$1",
-        row_id,
-    )
+    async with pool.acquire() as conn:
+        await neon_retry(conn, conn.execute,
+            "UPDATE discharges SET status='processing', updated_at=NOW() WHERE id=$1",
+            row_id,
+        )
 
     try:
         data = dict(row)
-
         hl7 = build_hl7_message(data)
-        await neon_retry(conn, conn.execute,
-            """
-            UPDATE discharges
-            SET hl7_a03=$2,
-                updated_at=NOW()
-            WHERE id=$1
-            """,
-            row_id,
-            hl7,
-        )
+
+        async with pool.acquire() as conn:
+            await neon_retry(conn, conn.execute,
+                """
+                UPDATE discharges
+                SET hl7_a03=$2,
+                    updated_at=NOW()
+                WHERE id=$1
+                """,
+                row_id,
+                hl7,
+            )
 
         raw_response = submit_discarge_hl7(hl7)
         msa_code, message_id, err = parse_hl7_response(raw_response)
 
         if msa_code == "AA":
-            await neon_retry(conn, conn.execute,
-                """
-                UPDATE discharges
-                SET status='completed',
-                    raw_response_a03=$2,
-                    updated_at=NOW()
-                WHERE id=$1
-                """,
-                row_id,
-                raw_response,
-            )
+            async with pool.acquire() as conn:
+                await neon_retry(conn, conn.execute,
+                    """
+                    UPDATE discharges
+                    SET status='completed',
+                        raw_response_a03=$2,
+                        updated_at=NOW()
+                    WHERE id=$1
+                    """,
+                    row_id,
+                    raw_response,
+                )
 
             await send_webhook("discharge_completed", {
                 "ticket_number": ticket,
@@ -237,21 +243,22 @@ async def process_discharge_row(conn, row):
             })
 
         elif msa_code == "AR":
-            await neon_retry(conn, conn.execute,
-                """
-                UPDATE discharges
-                SET status='rejected',
-                    error_code=$3,
-                    error_details=$4,
-                    raw_response_a03=$2,
-                    updated_at=NOW()
-                WHERE id=$1
-                """,
-                row_id,
-                raw_response,
-                err["eopyy_code"],
-                json.dumps(err),
-            )
+            async with pool.acquire() as conn:
+                await neon_retry(conn, conn.execute,
+                    """
+                    UPDATE discharges
+                    SET status='rejected',
+                        error_code=$3,
+                        error_details=$4,
+                        raw_response_a03=$2,
+                        updated_at=NOW()
+                    WHERE id=$1
+                    """,
+                    row_id,
+                    raw_response,
+                    err["eopyy_code"],
+                    json.dumps(err),
+                )
 
             await send_webhook("discharge_rejected", {
                 "ticket_number": ticket,
@@ -261,21 +268,22 @@ async def process_discharge_row(conn, row):
             send_error_email(ticket, f"EOPYY rejected discharge:\n\n{raw_response}")
 
         else:
-            await neon_retry(conn, conn.execute,
-                """
-                UPDATE discharges
-                SET status='error',
-                    error_code=$3,
-                    error_details=$4,
-                    raw_response_a03=$2,
-                    updated_at=NOW()
-                WHERE id=$1
-                """,
-                row_id,
-                raw_response,
-                err["eopyy_code"],
-                json.dumps(err),
-            )
+            async with pool.acquire() as conn:
+                await neon_retry(conn, conn.execute,
+                    """
+                    UPDATE discharges
+                    SET status='error',
+                        error_code=$3,
+                        error_details=$4,
+                        raw_response_a03=$2,
+                        updated_at=NOW()
+                    WHERE id=$1
+                    """,
+                    row_id,
+                    raw_response,
+                    err["eopyy_code"],
+                    json.dumps(err),
+                )
 
             await send_webhook("worker_error", {
                 "ticket_number": ticket,
@@ -288,17 +296,18 @@ async def process_discharge_row(conn, row):
         error_msg = str(e)
         logger.exception(f"[{ticket}] Discharge processing error")
 
-        await neon_retry(conn, conn.execute,
-            """
-            UPDATE discharges
-            SET status='error',
-                raw_response_a03=$2,
-                updated_at=NOW()
-            WHERE id=$1
-            """,
-            row_id,
-            json.dumps({"error": error_msg}),
-        )
+        async with pool.acquire() as conn:
+            await neon_retry(conn, conn.execute,
+                """
+                UPDATE discharges
+                SET status='error',
+                    raw_response_a03=$2,
+                    updated_at=NOW()
+                WHERE id=$1
+                """,
+                row_id,
+                json.dumps({"error": error_msg}),
+            )
 
         await send_webhook("worker_error", {
             "ticket_number": ticket,
@@ -312,50 +321,53 @@ async def process_discharge_row(conn, row):
 # MAIN LOOP
 # ---------------------------------------------------------
 async def worker_loop():
-    conn = await asyncpg.connect(DB_URL)
-    logger.info("Worker connected to DB")
+    pool = await asyncpg.create_pool(DB_URL, min_size=1, max_size=5)
+    logger.info("Worker connected to DB (POOL MODE)")
 
     try:
         while True:
 
-            await neon_retry(conn, conn.execute,
-                """
-                UPDATE worker_heartbeat
-                SET last_beat = NOW()
-                WHERE id = 1
-                """
-            )
+            async with pool.acquire() as conn:
+                await neon_retry(conn, conn.execute,
+                    """
+                    UPDATE worker_heartbeat
+                    SET last_beat = NOW()
+                    WHERE id = 1
+                    """
+                )
 
-            admissions = await neon_retry(conn, conn.fetch,
-                """
-                SELECT * FROM admissions
-                WHERE status='pending'
-                ORDER BY created_at
-                LIMIT 20
-                """
-            )
+            async with pool.acquire() as conn:
+                admissions = await neon_retry(conn, conn.fetch,
+                    """
+                    SELECT * FROM admissions
+                    WHERE status='pending'
+                    ORDER BY created_at
+                    LIMIT 20
+                    """
+                )
 
-            discharges = await neon_retry(conn, conn.fetch,
-                """
-                SELECT * FROM discharges
-                WHERE status='pending'
-                ORDER BY created_at
-                LIMIT 20
-                """
-            )
+            async with pool.acquire() as conn:
+                discharges = await neon_retry(conn, conn.fetch,
+                    """
+                    SELECT * FROM discharges
+                    WHERE status='pending'
+                    ORDER BY created_at
+                    LIMIT 20
+                    """
+                )
 
             if not admissions and not discharges:
                 await asyncio.sleep(5)
                 continue
 
             for row in admissions:
-                await process_admission_row(conn, row)
+                await process_admission_row(pool, row)
 
             for row in discharges:
-                await process_discharge_row(conn, row)
+                await process_discharge_row(pool, row)
 
     finally:
-        await conn.close()
+        await pool.close()
 
 
 if __name__ == "__main__":

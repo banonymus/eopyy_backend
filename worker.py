@@ -19,6 +19,24 @@ WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
 
 # ---------------------------------------------------------
+# MINIMAL NEON PATCH
+# ---------------------------------------------------------
+async def neon_retry(conn, method, *args):
+    """
+    Minimal Neon fix: retry once if prepared statement is invalid.
+    """
+    try:
+        return await method(*args)
+    except (asyncpg.InvalidCachedStatementError, asyncpg.exceptions._base.InterfaceError):
+        logger.warning("Neon invalidated prepared statement — reconnecting")
+        new_conn = await asyncpg.connect(DB_URL)
+        try:
+            return await method(*args)
+        finally:
+            await new_conn.close()
+
+
+# ---------------------------------------------------------
 # HL7 PARSER
 # ---------------------------------------------------------
 def parse_hl7_response(raw):
@@ -60,7 +78,7 @@ async def process_admission_row(conn, row):
 
     logger.info(f"[{ticket}] Processing ADMISSION (id={row_id})")
 
-    await conn.execute(
+    await neon_retry(conn, conn.execute,
         "UPDATE admissions SET status='processing', updated_at=NOW() WHERE id=$1",
         row_id,
     )
@@ -69,7 +87,7 @@ async def process_admission_row(conn, row):
         data = dict(row)
 
         hl7 = build_hl7_message(data)
-        await conn.execute(
+        await neon_retry(conn, conn.execute,
             "UPDATE admissions SET hl7=$2, updated_at=NOW() WHERE id=$1",
             row_id,
             hl7,
@@ -79,7 +97,7 @@ async def process_admission_row(conn, row):
         msa_code, message_id, err = parse_hl7_response(raw_response)
 
         if msa_code == "AA":
-            await conn.execute(
+            await neon_retry(conn, conn.execute,
                 """
                 UPDATE admissions
                 SET status='completed',
@@ -97,7 +115,7 @@ async def process_admission_row(conn, row):
             })
 
         elif msa_code == "AR":
-            await conn.execute(
+            await neon_retry(conn, conn.execute,
                 """
                 UPDATE admissions
                 SET status='rejected',
@@ -121,7 +139,7 @@ async def process_admission_row(conn, row):
             send_error_email(ticket, f"EOPYY rejected admission:\n\n{raw_response}")
 
         else:
-            await conn.execute(
+            await neon_retry(conn, conn.execute,
                 """
                 UPDATE admissions
                 SET status='error',
@@ -148,7 +166,7 @@ async def process_admission_row(conn, row):
         error_msg = str(e)
         logger.exception(f"[{ticket}] Admission processing error")
 
-        await conn.execute(
+        await neon_retry(conn, conn.execute,
             """
             UPDATE admissions
             SET status='error',
@@ -177,7 +195,7 @@ async def process_discharge_row(conn, row):
 
     logger.info(f"[{ticket}] Processing DISCHARGE (id={row_id})")
 
-    await conn.execute(
+    await neon_retry(conn, conn.execute,
         "UPDATE discharges SET status='processing', updated_at=NOW() WHERE id=$1",
         row_id,
     )
@@ -186,7 +204,7 @@ async def process_discharge_row(conn, row):
         data = dict(row)
 
         hl7 = build_hl7_message(data)
-        await conn.execute(
+        await neon_retry(conn, conn.execute,
             """
             UPDATE discharges
             SET hl7_a03=$2,
@@ -201,7 +219,7 @@ async def process_discharge_row(conn, row):
         msa_code, message_id, err = parse_hl7_response(raw_response)
 
         if msa_code == "AA":
-            await conn.execute(
+            await neon_retry(conn, conn.execute,
                 """
                 UPDATE discharges
                 SET status='completed',
@@ -219,7 +237,7 @@ async def process_discharge_row(conn, row):
             })
 
         elif msa_code == "AR":
-            await conn.execute(
+            await neon_retry(conn, conn.execute,
                 """
                 UPDATE discharges
                 SET status='rejected',
@@ -243,7 +261,7 @@ async def process_discharge_row(conn, row):
             send_error_email(ticket, f"EOPYY rejected discharge:\n\n{raw_response}")
 
         else:
-            await conn.execute(
+            await neon_retry(conn, conn.execute,
                 """
                 UPDATE discharges
                 SET status='error',
@@ -270,7 +288,7 @@ async def process_discharge_row(conn, row):
         error_msg = str(e)
         logger.exception(f"[{ticket}] Discharge processing error")
 
-        await conn.execute(
+        await neon_retry(conn, conn.execute,
             """
             UPDATE discharges
             SET status='error',
@@ -300,36 +318,31 @@ async def worker_loop():
     try:
         while True:
 
-            await conn.execute("""
+            await neon_retry(conn, conn.execute,
+                """
                 UPDATE worker_heartbeat
                 SET last_beat = NOW()
                 WHERE id = 1
-            """)
+                """
+            )
 
-            # Fetch pending admissions
-            admissions = await conn.fetch("""
+            admissions = await neon_retry(conn, conn.fetch,
+                """
                 SELECT * FROM admissions
                 WHERE status='pending'
                 ORDER BY created_at
                 LIMIT 20
-            """)
+                """
+            )
 
-            # Fetch pending discharges
-            try:
-                discharges = await conn.fetch("""
-                    SELECT * FROM discharges
-                    WHERE status='pending'
-                    ORDER BY created_at
-                    LIMIT 20
-                """)
-            except asyncpg.InvalidCachedStatementError:
-                logger.warning("Invalid cached statement (discharges) — reconnecting to DB")
-                try:
-                    await conn.close()
-                except:
-                    pass
-                conn = await asyncpg.connect(DB_URL)
-                continue
+            discharges = await neon_retry(conn, conn.fetch,
+                """
+                SELECT * FROM discharges
+                WHERE status='pending'
+                ORDER BY created_at
+                LIMIT 20
+                """
+            )
 
             if not admissions and not discharges:
                 await asyncio.sleep(5)

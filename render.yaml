@@ -2,6 +2,7 @@ services:
   - type: web
     name: eopyy-backend
     env: python
+    rootDir: .
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
@@ -15,6 +16,7 @@ services:
   - type: worker
     name: eopyy-worker-realtime
     env: python
+    rootDir: .
     buildCommand: pip install -r requirements.txt
     startCommand: python worker.py
     envVars:
@@ -24,6 +26,7 @@ services:
   - type: worker
     name: eopyy-worker-batch
     env: python
+    rootDir: .
     buildCommand: pip install -r requirements.txt
     startCommand: python -m app.worker_batch
     envVars:

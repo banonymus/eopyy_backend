@@ -1,4 +1,5 @@
 # main.py
+import json
 import os
 import logging
 from typing import Optional, List
@@ -9,6 +10,7 @@ from fastapi.encoders import jsonable_encoder
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
+from starlette.responses import FileResponse
 
 from database import get_session, engine
 from models import Base, Admission, Discharge
@@ -648,4 +650,44 @@ async def monitoring_index():
     return HTMLResponse(html)
 
 
+@app.get("/generate-hl7")
+async def generate_hl7(from_date: str, to_date: str):
+    job_id = f"hl7_discharges_{from_date}_{to_date}"
+    job = {
+        "job_id": job_id,
+        "type": "HL7_FILE_DISCHARGES",
+        "start_date": from_date,
+        "end_date": to_date
+    }
+
+    with open(f"/tmp/hl7_queue/{job_id}.json", "w") as f:
+        json.dump(job, f)
+
+    return {
+        "status": "queued",
+        "job_id": job_id,
+        "check_status": f"/job-status/{job_id}"
+    }
+
+
+@app.get("/job-status/{job_id}")
+async def job_status(job_id: str):
+    out_file = f"/tmp/{job_id}.hl7"
+
+    if os.path.exists(out_file):
+        return {
+            "status": "completed",
+            "download": f"/download/{job_id}"
+        }
+
+    if os.path.exists(f"/tmp/hl7_queue/{job_id}.json"):
+        return {"status": "processing"}
+
+    return {"status": "unknown"}
+
+
+@app.get("/download/{job_id}")
+async def download(job_id: str):
+    file_path = f"/tmp/{job_id}.hl7"
+    return FileResponse(file_path, filename=f"{job_id}.hl7")
 

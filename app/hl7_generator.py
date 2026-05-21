@@ -2,76 +2,10 @@ import datetime
 import aiofiles
 import os
 
-def fmt_date(dt):
-    if not dt:
-        return ""
-    if isinstance(dt, str):
-        try:
-            dt = datetime.datetime.fromisoformat(dt)
-        except:
-            return dt.replace("-", "")[:8]
-    return dt.strftime("%Y%m%d%H%M")
 
-def safe(v):
-    return "" if v is None else str(v)
-
-async def generate_hl7_file(discharges, out_path):
-    os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    total_amount = 0.0
-
-    async with aiofiles.open(out_path, "w", encoding="utf-8") as f:
-        await f.write("FHS|^~\\&|||||||HOSP1||I\n")
-        await f.write("BHS|^~\\&|||||202602~202602\n")
-
-        for i, r in enumerate(discharges, start=1):
-            msg_id = f"MSGID{i:05d}"
-
-            await f.write(
-                f"MSH|^~\\&|||||{fmt_date(r['discharge_time'])}||"
-                f"ADT^A03^ADT_A03|{r['ticket_number']}|P|2.6|||||||||"
-                f"{r['patient_id']}|^^^^^^^^^{r['installation_code']}\n"
-            )
-
-            await f.write(
-                f"EVN|A03|{fmt_date(r['discharge_time'])}|||{r['operator_id']}\n"
-            )
-
-            await f.write(
-                f"PID||{r['patient_id']}|{r['amka']}^^^^AMKA||"
-                f"{r['lastname']}^{r['firstname']}||{r['dob']}|{r['gender']}|||"
-                f"^{r.get('address','')}^^{r.get('city','')}^^{r.get('postal','')}||"
-                f"{r.get('phone','')}|||||{r.get('afm','')}|||||||||0||0\n"
-            )
-
-            await f.write(
-                f"PV1||I|{r['location_code']}||||{r['doctor_amka']}^|||||||||||0|"
-                f"{r['ticket_number']}||||||||||||||||||||||||||"
-                f"{fmt_date(r['admission_time'])}|||||{r['ticket_number']}\n"
-            )
-
-            await f.write("PV2||||||||||||||||||||||||||||||||||||||||||U\n")
-
-            await f.write(
-                f"DG1|1|ICD-10|{r['diagnosis_code']}|{r['diagnosis_desc']}||D\n"
-            )
-
-            await f.write(
-                f"PSL|||1||||{r['procedure_code']}|1||"
-                f"{fmt_date(r['admission_time'])}|{fmt_date(r['discharge_time'])}|"
-                f"0.0|||{r['price']:.2f}|{r['price']:.2f}|||||NO|||||||||\n"
-            )
-
-            await f.write(
-                f"ZSL|||||1|1|100.00|{r['price']:.2f}|0.00|{r['price']:.2f}|0.00||"
-                f"0|0|0.00|0.00|0|\n"
-            )
-
-            total_amount += float(r["price"])
-
-        await f.write(f"BTS|{len(discharges)}||{total_amount:.2f}\n")
-
-    return out_path
-
+# ---------------------------------------------------------
+#  CLEAN, FINAL, CORRECT HL7 DATE FORMATTER
+# ---------------------------------------------------------
 def fmt_date(dt):
     if not dt:
         return ""
@@ -80,23 +14,117 @@ def fmt_date(dt):
     if isinstance(dt, datetime.datetime):
         return dt.strftime("%Y%m%d%H%M")
 
-    # Try ISO format first
+    # Try ISO format first (YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)
     try:
         return datetime.datetime.fromisoformat(dt).strftime("%Y%m%d%H%M")
     except:
         pass
 
-    # Try EOPYY format: YYYYMMDDHHMMSS
+    # Try EOPYY/Neon format: YYYYMMDDHHMMSS
     try:
         return datetime.datetime.strptime(dt, "%Y%m%d%H%M%S").strftime("%Y%m%d%H%M")
     except:
         pass
 
-    # Try YYYYMMDD
+    # Try short date: YYYYMMDD
     try:
         return datetime.datetime.strptime(dt, "%Y%m%d").strftime("%Y%m%d%H%M")
     except:
         pass
 
-    # Fallback: return raw
-    return dt[:12]
+    # Fallback: return first 12 chars (YYYYMMDDHHMM)
+    return str(dt).replace("-", "")[:12]
+
+
+def safe(v):
+    return "" if v is None else str(v)
+
+
+# ---------------------------------------------------------
+#  HL7 FILE GENERATOR
+# ---------------------------------------------------------
+async def generate_hl7_file(discharges, out_path):
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    total_amount = 0.0
+
+    async with aiofiles.open(out_path, "w", encoding="utf-8") as f:
+
+        # File headers
+        await f.write("FHS|^~\\&|||||||HOSP1||I\n")
+        await f.write("BHS|^~\\&|||||202602~202602\n")
+
+        for i, r in enumerate(discharges, start=1):
+            msg_id = f"MSGID{i:05d}"
+
+            # ---------------------------------------------------------
+            # MSH
+            # ---------------------------------------------------------
+            await f.write(
+                f"MSH|^~\\&|||||{fmt_date(r['discharge_time'])}||"
+                f"ADT^A03^ADT_A03|{safe(r['ticket_number'])}|P|2.6|||||||||"
+                f"{safe(r['patient_id'])}|^^^^^^^^^{safe(r['installation_code'])}\n"
+            )
+
+            # ---------------------------------------------------------
+            # EVN
+            # ---------------------------------------------------------
+            await f.write(
+                f"EVN|A03|{fmt_date(r['discharge_time'])}|||{safe(r['operator_id'])}\n"
+            )
+
+            # ---------------------------------------------------------
+            # PID
+            # ---------------------------------------------------------
+            await f.write(
+                f"PID||{safe(r['patient_id'])}|{safe(r['amka'])}^^^^AMKA||"
+                f"{safe(r['lastname'])}^{safe(r['firstname'])}||{safe(r['dob'])}|{safe(r['gender'])}|||"
+                f"^{safe(r.get('address',''))}^^{safe(r.get('city',''))}^^{safe(r.get('postal',''))}||"
+                f"{safe(r.get('phone',''))}|||||{safe(r.get('afm',''))}|||||||||0||0\n"
+            )
+
+            # ---------------------------------------------------------
+            # PV1
+            # ---------------------------------------------------------
+            await f.write(
+                f"PV1||I|{safe(r['location_code'])}||||{safe(r['doctor_amka'])}^|||||||||||0|"
+                f"{safe(r['ticket_number'])}||||||||||||||||||||||||||"
+                f"{fmt_date(r['admission_time'])}|||||{safe(r['ticket_number'])}\n"
+            )
+
+            # ---------------------------------------------------------
+            # PV2
+            # ---------------------------------------------------------
+            await f.write("PV2||||||||||||||||||||||||||||||||||||||||||U\n")
+
+            # ---------------------------------------------------------
+            # DG1
+            # ---------------------------------------------------------
+            await f.write(
+                f"DG1|1|ICD-10|{safe(r['diagnosis_code'])}|{safe(r['diagnosis_desc'])}||D\n"
+            )
+
+            # ---------------------------------------------------------
+            # PSL
+            # ---------------------------------------------------------
+            await f.write(
+                f"PSL|||1||||{safe(r['procedure_code'])}|1||"
+                f"{fmt_date(r['admission_time'])}|{fmt_date(r['discharge_time'])}|"
+                f"0.0|||{float(r['price']):.2f}|{float(r['price']):.2f}|||||NO|||||||||\n"
+            )
+
+            # ---------------------------------------------------------
+            # ZSL
+            # ---------------------------------------------------------
+            await f.write(
+                f"ZSL|||||1|1|100.00|{float(r['price']):.2f}|0.00|{float(r['price']):.2f}|0.00||"
+                f"0|0|0.00|0.00|0|\n"
+            )
+
+            total_amount += float(r["price"])
+
+        # ---------------------------------------------------------
+        # TRAILER
+        # ---------------------------------------------------------
+        await f.write(f"BTS|{len(discharges)}||{total_amount:.2f}\n")
+
+    return out_path

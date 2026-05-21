@@ -2,7 +2,7 @@ import asyncio
 import json
 import os
 import asyncpg
-from hl7_generator import generate_hl7_file
+from app.hl7_generator import generate_hl7_file
 
 QUEUE_DIR = "/tmp/hl7_queue"
 os.makedirs(QUEUE_DIR, exist_ok=True)

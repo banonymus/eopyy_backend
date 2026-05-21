@@ -1,43 +1,93 @@
 import asyncio
-import os
 import json
+import os
+import asyncpg
+from hl7_generator import generate_hl7_file
 
-from app.db import AsyncSessionLocal, fetch_discharges
-from app.hl7_generator import generate_hl7_file
+QUEUE_DIR = "/tmp/hl7_queue"
+os.makedirs(QUEUE_DIR, exist_ok=True)
 
-QUEUE = "/tmp/hl7_queue"
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 
 async def process_job(job):
-    async with AsyncSessionLocal() as session:
-        discharges = await fetch_discharges(
-            session,
-            job["start_date"],
-            job["end_date"]
-        )
+    start_date = job["start_date"]   # already HL7 timestamp
+    end_date = job["end_date"]       # already HL7 timestamp
+
+    query = """
+    SELECT
+        ticket_number,
+        amka,
+        lastname,
+        firstname,
+        dob,
+        gender,
+        address,
+        city,
+        postal,
+        phone,
+        afm,
+        patient_id,
+        installation_code,
+        location_code,
+        doctor_amka,
+        diagnosis_code,
+        diagnosis_desc,
+        procedure_code,
+        price,
+        admit_datetime AS admission_time,
+        discharge_datetime AS discharge_time,
+        operator_id
+    FROM discharges
+    WHERE discharge_datetime BETWEEN $1 AND $2
+    ORDER BY discharge_datetime ASC
+    """
+
+    conn = await asyncpg.connect(DATABASE_URL)
+    rows = await conn.fetch(query, start_date, end_date)
+    await conn.close()
+
+    discharges = [dict(r) for r in rows]
 
     out_path = f"/tmp/{job['job_id']}.hl7"
     await generate_hl7_file(discharges, out_path)
 
+    return out_path
+
 
 async def worker_loop():
-    os.makedirs(QUEUE, exist_ok=True)
+    print("🚀 Batch worker started. Watching queue:", QUEUE_DIR)
 
     while True:
-        jobs = [f for f in os.listdir(QUEUE) if f.endswith(".json")]
+        try:
+            files = [f for f in os.listdir(QUEUE_DIR) if f.endswith(".json")]
 
-        for jf in jobs:
-            path = os.path.join(QUEUE, jf)
+            if not files:
+                await asyncio.sleep(2)
+                continue
 
-            with open(path) as f:
-                job = json.load(f)
+            for file in files:
+                job_path = os.path.join(QUEUE_DIR, file)
 
-            if job.get("type") == "HL7_FILE_DISCHARGES":
-                await process_job(job)
+                try:
+                    with open(job_path, "r") as f:
+                        job = json.load(f)
 
-            os.remove(path)
+                    print(f"📥 Processing job: {job['job_id']}")
 
-        await asyncio.sleep(2)
+                    out_path = await process_job(job)
+
+                    print(f"📤 HL7 file created: {out_path}")
+
+                    os.remove(job_path)
+
+                except Exception as e:
+                    print("❌ Error processing job:", e)
+
+        except Exception as e:
+            print("🔥 Worker loop error:", e)
+
+        await asyncio.sleep(1)
 
 
 if __name__ == "__main__":

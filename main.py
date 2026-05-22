@@ -25,6 +25,9 @@ from schemas import (
 from config import EXPECTED_KEY as CONFIG_EXPECTED_KEY, API_HEADER as CONFIG_API_HEADER
 from routes.retry import router as retry_router
 from routes.webhooks import router as webhook_router
+from routes.job_status import router as job_status_router
+app.include_router(job_status_router)
+
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -669,25 +672,4 @@ async def generate_hl7(from_date: str, to_date: str):
         "check_status": f"/job-status/{job_id}"
     }
 
-
-@app.get("/job-status/{job_id}")
-async def job_status(job_id: str):
-    out_file = f"/tmp/{job_id}.hl7"
-
-    if os.path.exists(out_file):
-        return {
-            "status": "completed",
-            "download": f"/download/{job_id}"
-        }
-
-    if os.path.exists(f"/tmp/hl7_queue/{job_id}.json"):
-        return {"status": "processing"}
-
-    return {"status": "unknown"}
-
-
-@app.get("/download/{job_id}")
-async def download(job_id: str):
-    file_path = f"/tmp/{job_id}.hl7"
-    return FileResponse(file_path, filename=f"{job_id}.hl7")
 

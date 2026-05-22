@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, TIMESTAMP
+from sqlalchemy import Column, Integer, String, Text, TIMESTAMP,BigInteger,DateTime
 from sqlalchemy.sql import func
 from sqlalchemy.orm import declarative_base
 
@@ -65,8 +65,7 @@ class Admission(Base):
     created_at = Column(TIMESTAMP, server_default=func.now())
 
 
-from sqlalchemy import Column, BigInteger, String, Text, DateTime, func
-from sqlalchemy.ext.declarative import declarative_base
+
 
 Base = declarative_base()
 
@@ -96,3 +95,20 @@ class Discharge(Base):
     raw_response = Column(Text)
     status = Column(String)
     created_at = Column(DateTime, server_default=func.now())
+
+from sqlalchemy import Column, Integer, String, Date, DateTime, func
+from sqlalchemy.orm import declarative_base
+
+Base = declarative_base()
+
+class HL7Job(Base):
+    __tablename__ = "hl7_jobs"
+
+    id = Column(Integer, primary_key=True)
+    job_id = Column(String, unique=True, nullable=False)
+    from_date = Column(Date, nullable=False)
+    to_date = Column(Date, nullable=False)
+    status = Column(String, nullable=False, default="pending")
+    result_file = Column(String, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

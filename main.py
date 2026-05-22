@@ -24,10 +24,20 @@ from schemas import (
 )
 from config import EXPECTED_KEY as CONFIG_EXPECTED_KEY, API_HEADER as CONFIG_API_HEADER
 
+
 # ---------------------------------------------------------
 # 1) Create FastAPI app FIRST
 # ---------------------------------------------------------
 app = FastAPI()
+
+import asyncio
+from app.worker_batch import worker_loop
+
+@app.on_event("startup")
+async def start_worker():
+    asyncio.create_task(worker_loop())
+
+
 
 logger = logging.getLogger("uvicorn.error")
 

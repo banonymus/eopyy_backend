@@ -1,40 +1,47 @@
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import FileResponse
-import os
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from starlette.responses import FileResponse
+
+from database import get_session
+from models import HL7Job
 
 router = APIRouter()
 
-QUEUE_DIR = "/tmp/hl7_queue"
-OUTPUT_DIR = "/tmp"
-
 
 @router.get("/job-status/{job_id}")
-async def job_status(job_id: str):
-    job_file = f"{QUEUE_DIR}/{job_id}.json"
-    hl7_file = f"{OUTPUT_DIR}/{job_id}.hl7"
+async def job_status(job_id: str, db: AsyncSession = Depends(get_session)):
+    # Fetch job from DB
+    result = await db.execute(select(HL7Job).where(HL7Job.job_id == job_id))
+    job = result.scalar_one_or_none()
 
-    if os.path.exists(job_file):
-        return {"job_id": job_id, "status": "processing"}
+    if not job:
+        return {"job_id": job_id, "status": "unknown"}
 
-    if os.path.exists(hl7_file):
-        return {
-            "job_id": job_id,
-            "status": "completed",
-            "download": f"/download/{job_id}"
-        }
-
-    return {"job_id": job_id, "status": "unknown"}
+    return {
+        "job_id": job.job_id,
+        "status": job.status,
+        "download": f"/download/{job.job_id}" if job.status == "completed" else None
+    }
 
 
 @router.get("/download/{job_id}")
-async def download_hl7(job_id: str):
-    file_path = f"{OUTPUT_DIR}/{job_id}.hl7"
+async def download(job_id: str, db: AsyncSession = Depends(get_session)):
+    # Fetch job from DB
+    result = await db.execute(select(HL7Job).where(HL7Job.job_id == job_id))
+    job = result.scalar_one_or_none()
 
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="HL7 file not found")
+    if not job:
+        raise HTTPException(404, "Job not found")
+
+    if job.status != "completed":
+        raise HTTPException(400, "Job not completed yet")
+
+    if not job.result_file:
+        raise HTTPException(500, "Job completed but no file stored")
 
     return FileResponse(
-        file_path,
+        job.result_file,
         media_type="text/plain",
-        filename=f"{job_id}.hl7"
+        filename=f"{job.job_id}.hl7"
     )

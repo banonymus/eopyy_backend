@@ -23,40 +23,44 @@ from schemas import (
     DischargeUpdate,
 )
 from config import EXPECTED_KEY as CONFIG_EXPECTED_KEY, API_HEADER as CONFIG_API_HEADER
-from routes.retry import router as retry_router
-from routes.webhooks import router as webhook_router
-from routes.job_status import router as job_status_router
-app.include_router(job_status_router)
 
+# ---------------------------------------------------------
+# 1) Create FastAPI app FIRST
+# ---------------------------------------------------------
+app = FastAPI()
 
 logger = logging.getLogger("uvicorn.error")
 
-app = FastAPI()
+# ---------------------------------------------------------
+# 2) Import routers AFTER app creation
+# ---------------------------------------------------------
+from routes.retry import router as retry_router
+from routes.webhooks import router as webhook_router
+from routes.job_status import router as job_status_router
+from app.generate_hl7 import router as generate_hl7_router
+
+# ---------------------------------------------------------
+# 3) Include routers
+# ---------------------------------------------------------
 app.include_router(retry_router)
 app.include_router(webhook_router)
+app.include_router(job_status_router)
+app.include_router(generate_hl7_router)
 
-# -------------------------
-# Configuration (single source of truth)
-# -------------------------
+# ---------------------------------------------------------
+# Configuration
+# ---------------------------------------------------------
 EXPECTED_KEY: Optional[str] = os.getenv("API_KEY") or CONFIG_EXPECTED_KEY
 API_HEADER: str = (os.getenv("API_HEADER") or CONFIG_API_HEADER or "X-API-Key")
 
-""""
 
-@app.get("/debug/api-key")
-async def debug_api_key():
-    return {"API_KEY": os.getenv("API_KEY")}
-"""
-
-
-# -------------------------
-# Single middleware to verify API key (case-insensitive)
-# -------------------------
+# ---------------------------------------------------------
+# Middleware: API Key Verification
+# ---------------------------------------------------------
 @app.middleware("http")
 async def verify_api_key(request: Request, call_next):
     path = request.url.path
 
-    # Public endpoints
     PUBLIC_PATHS = {
         "/health",
         "/docs",
@@ -73,15 +77,12 @@ async def verify_api_key(request: Request, call_next):
         "/monitoring/last-success",
     }
 
-    # Allow monitoring without API key
     if path in PUBLIC_PATHS or path.startswith("/monitoring"):
         return await call_next(request)
 
-    # 🔥 Allow webhooks without API key
     if path.startswith("/webhooks/"):
         return await call_next(request)
 
-    # Read API key from headers OR query params
     api_key = (
         request.headers.get(API_HEADER)
         or request.headers.get(API_HEADER.lower())
@@ -97,11 +98,9 @@ async def verify_api_key(request: Request, call_next):
     return await call_next(request)
 
 
-
-# -------------------------
-# Optional route dump for debugging
-# Enable by setting environment variable ENABLE_ROUTE_DUMP=1 in Render
-# -------------------------
+# ---------------------------------------------------------
+# Optional route dump
+# ---------------------------------------------------------
 if os.getenv("ENABLE_ROUTE_DUMP") == "1":
 
     @app.on_event("startup")
@@ -111,30 +110,23 @@ if os.getenv("ENABLE_ROUTE_DUMP") == "1":
             logger.info("Route: %s %s", getattr(route, "methods", None), route.path)
 
 
-# -------------------------
-# DB startup: create tables
-# -------------------------
+# ---------------------------------------------------------
+# DB startup
+# ---------------------------------------------------------
 @app.on_event("startup")
 async def startup():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
 
-# -------------------------
-# Admissions endpoints
-# POST /admissions implements upsert: create if missing, update if exists
-# -------------------------
+# ---------------------------------------------------------
+# Admissions
+# ---------------------------------------------------------
 @app.post("/admissions", response_model=AdmissionRead)
 async def create_or_upsert_admission(data: AdmissionCreate, db: AsyncSession = Depends(get_session)):
-    """
-    Upsert behavior:
-    - If an admission with the same ticket_number exists, update it with provided fields and return 200.
-    - Otherwise create a new admission and return 201.
-    """
     if not data.ticket_number:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="ticket_number is required")
 
-    # Try to find existing by ticket_number
     result = await db.execute(select(Admission).where(Admission.ticket_number == data.ticket_number))
     existing = result.scalar_one_or_none()
 
@@ -145,36 +137,22 @@ async def create_or_upsert_admission(data: AdmissionCreate, db: AsyncSession = D
         db.add(existing)
         await db.commit()
         await db.refresh(existing)
-        return existing  # 200 OK
+        return existing
 
-    # Create new
     adm = Admission(**data.dict())
     db.add(adm)
     try:
         await db.commit()
     except IntegrityError:
-        # Race condition: another process created it concurrently
         await db.rollback()
         result = await db.execute(select(Admission).where(Admission.ticket_number == data.ticket_number))
         existing = result.scalar_one_or_none()
         if existing:
             return existing
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Could not create admission")
+        raise HTTPException(status_code=500, detail="Could not create admission")
+
     await db.refresh(adm)
-    # Return 201 for newly created resource
-    return JSONResponse(status_code=status.HTTP_201_CREATED, content=jsonable_encoder(adm))
-
-
-# -------------------------
-# List admissions
-# -------------------------
-"""
-@app.get("/admissions", response_model=List[AdmissionRead])
-async def list_admissions(db: AsyncSession = Depends(get_session)):
-    result = await db.execute(select(Admission).order_by(Admission.id.desc()))
-    return result.scalars().all()
-"""
-
+    return JSONResponse(status_code=201, content=jsonable_encoder(adm))
 
 
 @app.get("/admissions/{ticket_number}", response_model=AdmissionRead)
@@ -185,20 +163,13 @@ async def get_admission(ticket_number: str, db: AsyncSession = Depends(get_sessi
         raise HTTPException(status_code=404, detail="Admission not found")
     return admission
 
-# -------------------------
-# Update admission by internal id (keeps explicit update endpoint)
-# -------------------------
+
 @app.patch("/admissions/id/{admission_id}", response_model=AdmissionRead)
-async def update_admission(
-    admission_id: int,
-    data: AdmissionUpdate,
-    db: AsyncSession = Depends(get_session),
-):
-    logger.info("update_admission called with id=%s", admission_id)
+async def update_admission(admission_id: int, data: AdmissionUpdate, db: AsyncSession = Depends(get_session)):
     result = await db.execute(select(Admission).where(Admission.id == admission_id))
     adm = result.scalar_one_or_none()
     if not adm:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Admission not found")
+        raise HTTPException(status_code=404, detail="Admission not found")
 
     update_data = data.dict(exclude_unset=True)
     for field, value in update_data.items():
@@ -210,9 +181,9 @@ async def update_admission(
     return adm
 
 
-# -------------------------
-# Health and debug
-# -------------------------
+# ---------------------------------------------------------
+# Health & Debug
+# ---------------------------------------------------------
 @app.get("/health")
 async def health():
     return {"status": "ok"}
@@ -220,18 +191,15 @@ async def health():
 
 @app.get("/debug-version")
 def debug_version():
-    # local import to avoid circular issues at module import time
-    import models  # noqa: F401
+    import models
     return {"fields": list(models.Admission.__table__.columns.keys())}
 
 
-# Optional header debug endpoint (temporary; remove in production)
 @app.post("/_debug-headers")
 async def debug_headers(request: Request):
     headers = dict(request.headers)
     logger.info("Incoming headers for debug: %s", headers)
     return {"received_headers": list(headers.keys())}
-
 
 # -------------------------
 # Discharges endpoints

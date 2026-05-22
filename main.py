@@ -61,6 +61,10 @@ API_HEADER: str = (os.getenv("API_HEADER") or CONFIG_API_HEADER or "X-API-Key")
 async def verify_api_key(request: Request, call_next):
     path = request.url.path
 
+    # Allow HL7 endpoints without API key
+    if path.startswith("/generate-hl7") or path.startswith("/job-status") or path.startswith("/download"):
+        return await call_next(request)
+
     PUBLIC_PATHS = {
         "/health",
         "/docs",

@@ -16,31 +16,28 @@ async def process_job(job):
 
     query = """
     SELECT
-        ticket_number,
-        amka,
-        lastname,
-        firstname,
-        dob,
-        gender,
-        address,
-        city,
-        postal,
-        phone,
-        afm,
-        patient_id,
-        installation_code,
-        location_code,
-        doctor_amka,
-        diagnosis_code,
-        diagnosis_desc,
-        procedure_code,
-        price,
-        admit_datetime AS admission_time,
-        discharge_datetime AS discharge_time,
-        operator_id
-    FROM discharges
-    WHERE discharge_datetime BETWEEN $1 AND $2
-    ORDER BY discharge_datetime ASC
+    ticket_number,
+    profile_id,
+    installation_code,
+    operator_id,
+    last_name,
+    first_name,
+    country_code,
+    amka,
+    dob_hl7,
+    sex_val,
+    location_code,
+    doctor_amka,
+    admit_datetime AS admission_time,
+    discharge_datetime AS discharge_time,
+    alt_visit_id,
+    icd10_code AS diagnosis_code,
+    icd10_desc AS diagnosis_desc,
+    icd10_date,
+    status
+FROM discharges
+WHERE discharge_datetime BETWEEN $1 AND $2
+ORDER BY discharge_datetime ASC
     """
 
     conn = await asyncpg.connect(DATABASE_URL)

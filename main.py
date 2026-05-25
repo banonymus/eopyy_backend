@@ -24,6 +24,7 @@ from schemas import (
 )
 from config import EXPECTED_KEY as CONFIG_EXPECTED_KEY, API_HEADER as CONFIG_API_HEADER
 from models import HL7Job
+from database import async_session
 
 
 # ---------------------------------------------------------
@@ -656,10 +657,13 @@ async def generate_hl7(from_date: str, to_date: str):
     }
 
 @app.get("/debug/job/{job_id}")
-async def debug_job(job_id: str, db: AsyncSession = Depends(get_session)):
+async def debug_job(job_id: str):
     job_id = job_id.strip()
-    result = await db.execute(select(HL7Job).where(HL7Job.job_id == job_id))
-    job = result.scalar_one_or_none()
+
+    async with async_session() as db:
+        result = await db.execute(select(HL7Job).where(HL7Job.job_id == job_id))
+        job = result.scalar_one_or_none()
+
     if not job:
         return {"error": "not found"}
 

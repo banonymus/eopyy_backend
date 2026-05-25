@@ -11,7 +11,8 @@ router = APIRouter()
 
 @router.get("/job-status/{job_id}")
 async def job_status(job_id: str, db: AsyncSession = Depends(get_session)):
-    # Fetch job from DB
+    print(">>> RECEIVED job_id:", job_id)
+
     result = await db.execute(select(HL7Job).where(HL7Job.job_id == job_id))
     job = result.scalar_one_or_none()
 
@@ -23,6 +24,7 @@ async def job_status(job_id: str, db: AsyncSession = Depends(get_session)):
         "status": job.status,
         "download": f"/download/{job.job_id}" if job.status == "completed" else None
     }
+
 
 
 @router.get("/download/{job_id}")

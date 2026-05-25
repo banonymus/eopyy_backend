@@ -11,7 +11,7 @@ router = APIRouter()
 
 @router.get("/job-status/{job_id}")
 async def job_status(job_id: str, db: AsyncSession = Depends(get_session)):
-    print(">>> RECEIVED job_id:", job_id)
+    job_id = job_id.strip()  # <--- FIX
 
     result = await db.execute(select(HL7Job).where(HL7Job.job_id == job_id))
     job = result.scalar_one_or_none()
@@ -27,8 +27,10 @@ async def job_status(job_id: str, db: AsyncSession = Depends(get_session)):
 
 
 
+
 @router.get("/download/{job_id}")
 async def download(job_id: str, db: AsyncSession = Depends(get_session)):
+    job_id = job_id.strip()
     # Fetch job from DB
     result = await db.execute(select(HL7Job).where(HL7Job.job_id == job_id))
     job = result.scalar_one_or_none()

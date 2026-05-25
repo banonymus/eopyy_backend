@@ -653,5 +653,16 @@ async def generate_hl7(from_date: str, to_date: str):
         "job_id": job_id,
         "check_status": f"/job-status/{job_id}"
     }
+@app.get("/debug/check-db")
+async def check_db():
+    from sqlalchemy import select
+    from models import HL7Job
+    from database import async_session
+
+    async with async_session() as db:
+        result = await db.execute(select(HL7Job))
+        rows = result.fetchall()
+
+    return {"rows": [dict(r._mapping) for r in rows]}
 
 

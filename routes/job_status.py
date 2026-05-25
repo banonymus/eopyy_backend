@@ -49,3 +49,20 @@ async def download(job_id: str, db: AsyncSession = Depends(get_session)):
         media_type="text/plain",
         filename=f"{job.job_id}.hl7"
     )
+
+@router.get("/debug/job/{job_id}")
+async def debug_job(job_id: str, db: AsyncSession = Depends(get_session)):
+    job_id = job_id.strip()
+
+    result = await db.execute(select(HL7Job).where(HL7Job.job_id == job_id))
+    job = result.scalar_one_or_none()
+
+    if not job:
+        return {"error": "not found"}
+
+    return {
+        "job_id": job.job_id,
+        "status": job.status,
+        "result_file": job.result_file,
+        "updated_at": job.updated_at
+    }

@@ -654,20 +654,3 @@ async def generate_hl7(from_date: str, to_date: str):
         "check_status": f"/job-status/{job_id}"
     }
 
-from fastapi import FastAPI
-from sqlalchemy import select
-from models import HL7Job
-from database import async_session
-
-app = FastAPI()
-
-@app.get("/debug/check-db")
-async def check_db():
-    try:
-        async with async_session() as db:
-            result = await db.execute(select(HL7Job))
-            rows = result.fetchall()
-            return {"rows": [dict(r._mapping) for r in rows]}
-    except Exception as e:
-        return {"error": str(e), "type": str(type(e))}
-

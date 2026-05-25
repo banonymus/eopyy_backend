@@ -1,15 +1,39 @@
+import os
+import ssl
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
 # ---------------------------------------------------------
-# 1. ASYNC DATABASE ENGINE (Neon)
+# 1. LOAD DATABASE URL FROM ENV
 # ---------------------------------------------------------
-DATABASE_URL = "postgresql+asyncpg://<USERNAME>:<PASSWORD>@<HOST>/<DBNAME>"
+raw_url = os.getenv("DATABASE_URL")
 
+if not raw_url:
+    raise RuntimeError("❌ DATABASE_URL is missing from environment variables")
+
+# ---------------------------------------------------------
+# 2. REMOVE sslmode=require (Neon adds it automatically)
+# ---------------------------------------------------------
+if "sslmode=" in raw_url:
+    raw_url = raw_url.split("?")[0]
+
+# ---------------------------------------------------------
+# 3. CREATE SSL CONTEXT FOR ASYNCPG
+# ---------------------------------------------------------
+ssl_ctx = ssl.create_default_context()
+
+# If Neon requires insecure SSL (rare), uncomment:
+# ssl_ctx.check_hostname = False
+# ssl_ctx.verify_mode = ssl.CERT_NONE
+
+# ---------------------------------------------------------
+# 4. CREATE ASYNC ENGINE WITH SSL
+# ---------------------------------------------------------
 engine = create_async_engine(
-    DATABASE_URL,
+    raw_url,
     echo=False,
-    future=True
+    future=True,
+    connect_args={"ssl": ssl_ctx}
 )
 
 AsyncSessionLocal = sessionmaker(
@@ -19,7 +43,7 @@ AsyncSessionLocal = sessionmaker(
 )
 
 # ---------------------------------------------------------
-# 2. FETCH DISCHARGES (όπως μου έστειλες)
+# 5. FETCH DISCHARGES
 # ---------------------------------------------------------
 async def fetch_discharges(session, start_date, end_date):
     query = """

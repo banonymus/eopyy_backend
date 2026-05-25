@@ -1,19 +1,36 @@
+# database.py
 import os
+import ssl
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
-from dotenv import load_dotenv
 
-load_dotenv()
+# ---------------------------------------------------------
+# 1. LOAD DATABASE URL FROM ENV
+# ---------------------------------------------------------
+raw_url = os.getenv("DATABASE_URL")
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+if not raw_url:
+    raise RuntimeError("❌ DATABASE_URL is missing")
 
-if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL is missing")
+# ---------------------------------------------------------
+# 2. REMOVE sslmode=require (Neon adds it automatically)
+# ---------------------------------------------------------
+if "sslmode=" in raw_url:
+    raw_url = raw_url.split("?")[0]
 
+# ---------------------------------------------------------
+# 3. CREATE SSL CONTEXT FOR ASYNCPG
+# ---------------------------------------------------------
+ssl_ctx = ssl.create_default_context()
+
+# ---------------------------------------------------------
+# 4. CREATE ASYNC ENGINE WITH SSL
+# ---------------------------------------------------------
 engine = create_async_engine(
-    DATABASE_URL,
+    raw_url,
     echo=False,
-    pool_pre_ping=True,
+    future=True,
+    connect_args={"ssl": ssl_ctx}
 )
 
 async_session = sessionmaker(

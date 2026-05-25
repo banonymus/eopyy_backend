@@ -1,40 +1,78 @@
+import os
+import ssl
 import asyncio
+import logging
+import asyncpg
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from database import async_session
 from models import HL7Job
-from datetime import datetime
+from app.hl7_generator import generate_hl7_file
 
-def build_hl7_for_range(from_date, to_date):
-    # Your HL7 generation logic here
-    return f"HL7 DATA FOR {from_date} → {to_date}"
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("hl7-worker")
+
+raw_url = os.getenv("DATABASE_URL")
+if not raw_url:
+    raise RuntimeError("DATABASE_URL missing")
+
+if "sslmode=" in raw_url:
+    raw_url = raw_url.split("?")[0]
+
+ssl_ctx = ssl.create_default_context()
 
 async def worker_loop():
+    logger.info("🚀 HL7 Worker started")
+
     while True:
-        async with async_session() as db:
-            result = await db.execute(
-                select(HL7Job)
-                .where(HL7Job.status == "pending")
-                .order_by(HL7Job.created_at)
-                .limit(1)
-            )
-            job = result.scalar_one_or_none()
+        try:
+            async with async_session() as db:
 
-            if not job:
-                await asyncio.sleep(3)
-                continue
+                result = await db.execute(
+                    select(HL7Job)
+                    .where(HL7Job.status == "pending")
+                    .order_by(HL7Job.created_at)
+                    .limit(1)
+                )
+                job = result.scalar_one_or_none()
 
-            job.status = "processing"
-            await db.commit()
+                if not job:
+                    await asyncio.sleep(2)
+                    continue
 
-            hl7_content = build_hl7_for_range(job.from_date, job.to_date)
+                logger.info(f"📥 Processing job: {job.job_id}")
 
-            filename = f"/tmp/{job.job_id}.hl7"
-            with open(filename, "w") as f:
-                f.write(hl7_content)
+                job.status = "processing"
+                await db.commit()
 
-            job.status = "completed"
-            job.result_file = filename
-            await db.commit()
+                start_hl7 = job.from_date.strftime("%Y%m%d000000")
+                end_hl7 = job.to_date.strftime("%Y%m%d235959")
 
-        await asyncio.sleep(0.1)
+                conn = await asyncpg.connect(raw_url, ssl=ssl_ctx)
+
+                rows = await conn.fetch("""
+                    SELECT *
+                    FROM discharges
+                    WHERE discharge_datetime BETWEEN $1 AND $2
+                    ORDER BY discharge_datetime ASC
+                """, start_hl7, end_hl7)
+
+                await conn.close()
+
+                discharges = [dict(r) for r in rows]
+
+                out_path = f"/tmp/{job.job_id}.hl7"
+                await generate_hl7_file(discharges, out_path)
+
+                job.status = "completed"
+                job.result_file = out_path
+                await db.commit()
+
+                logger.info(f"📤 Completed job: {job.job_id}")
+
+        except Exception:
+            logger.exception("Worker crashed")
+            await asyncio.sleep(5)
+
+if __name__ == "__main__":
+    asyncio.run(worker_loop())
+

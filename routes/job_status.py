@@ -11,20 +11,28 @@ router = APIRouter()
 
 @router.get("/debug/job/{job_id}")
 async def debug_job(job_id: str, db: AsyncSession = Depends(get_session)):
-    job_id = job_id.strip()
+    try:
+        job_id = job_id.strip()
 
-    result = await db.execute(select(HL7Job).where(HL7Job.job_id == job_id))
-    job = result.scalar_one_or_none()
+        result = await db.execute(select(HL7Job).where(HL7Job.job_id == job_id))
+        job = result.scalar_one_or_none()
 
-    if not job:
-        return {"error": "not found"}
+        if not job:
+            return {"error": "not found"}
 
-    return {
-        "job_id": job.job_id,
-        "status": job.status,
-        "result_file": job.result_file,
-        "updated_at": job.updated_at
-    }
+        return {
+            "job_id": job.job_id,
+            "status": job.status,
+            "result_file": job.result_file,
+            "updated_at": job.updated_at
+        }
+
+    except Exception as e:
+        return {
+            "error": str(e),
+            "type": str(type(e)),
+            "job_id_received": job_id
+        }
 
 
 @router.get("/job-status/{job_id}")

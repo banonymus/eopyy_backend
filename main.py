@@ -96,7 +96,8 @@ async def verify_api_key(request: Request, call_next):
         "/debug/job",
     }
 
-    if path in PUBLIC_PATHS or path.startswith("/monitoring"):
+    # Allow exact matches OR any prefix match
+    if any(path == p or path.startswith(p) for p in PUBLIC_PATHS):
         return await call_next(request)
 
     if path.startswith("/webhooks/"):

@@ -93,6 +93,7 @@ async def verify_api_key(request: Request, call_next):
         "/monitoring/last-success",
         "/worker/get-job",
         "/worker/update-job",
+        "/debug/job",
     }
 
     if path in PUBLIC_PATHS or path.startswith("/monitoring"):

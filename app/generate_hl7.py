@@ -26,7 +26,7 @@ async def generate_hl7(from_date: str, to_date: str, db: AsyncSession = Depends(
         job_id=job_id,
         from_date=datetime.strptime(from_date, "%Y-%m-%d"),
         to_date=datetime.strptime(to_date, "%Y-%m-%d"),
-        status="pending"
+        status="queued"
     )
 
     db.add(job)

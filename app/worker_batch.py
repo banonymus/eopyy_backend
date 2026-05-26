@@ -29,7 +29,7 @@ async def worker_loop():
 
                 result = await db.execute(
                     select(HL7Job)
-                    .where(HL7Job.status == "pending")
+                    .where(HL7Job.status == "queued")
                     .order_by(HL7Job.created_at)
                     .limit(1)
                 )

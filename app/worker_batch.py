@@ -11,7 +11,7 @@ from app.hl7_generator import generate_hl7_file
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("hl7-worker")
 
-raw_url = os.getenv("DATABASE_URL")
+raw_url = os.getenv("WORKER_DATABASE_URL")
 if not raw_url:
     raise RuntimeError("DATABASE_URL missing")
 

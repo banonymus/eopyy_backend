@@ -44,14 +44,14 @@ async def generate_hl7_file(discharges, out_path):
 
             # MSH
             await f.write(
-                f"MSH|^~\\&|||||{fmt_date(r['discharge_time'])}||"
+                f"MSH|^~\\&|||||{fmt_date(r['discharge_datetime'])}||"
                 f"ADT^A03^ADT_A03|{safe(r['ticket_number'])}|P|2.6|||||||||"
                 f"{safe(r['profile_id'])}|^^^^^^^^^{safe(r['installation_code'])}\n"
             )
 
             # EVN
             await f.write(
-                f"EVN|A03|{fmt_date(r['discharge_time'])}|||{safe(r['operator_id'])}\n"
+                f"EVN|A03|{fmt_date(r['discharge_datetime'])}|||{safe(r['operator_id'])}\n"
             )
 
             # PID

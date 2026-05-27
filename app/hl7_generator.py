@@ -70,7 +70,7 @@ async def generate_hl7_file(discharges, out_path):
 
             # DG1
             await f.write(
-                f"DG1|1|ICD-10|{safe(r['diagnosis_code'])}|{safe(r['diagnosis_desc'])}|"
+                f"DG1|1|ICD-10|{safe(r['icd10_code'])}|{safe(r['icd10_desc'])}|"
                 f"{safe(r['icd10_date'])}|D\n"
             )
 

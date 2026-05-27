@@ -65,7 +65,7 @@ async def generate_hl7_file(discharges, out_path):
             await f.write(
                 f"PV1||I|{safe(r['location_code'])}||||{safe(r['doctor_amka'])}^|||||||||||0|"
                 f"{safe(r['ticket_number'])}||||||||||||||||||||||||||"
-                f"{fmt_date(r['admission_datetime'])}|||||{safe(r['ticket_number'])}\n"
+                f"{fmt_date(r['admit_datetime'])}|||||{safe(r['ticket_number'])}\n"
             )
 
             # DG1

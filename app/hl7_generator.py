@@ -29,29 +29,32 @@ async def generate_hl7_file(discharges, out_path):
 
     async with aiofiles.open(out_path, "w", encoding="utf-8") as f:
 
-        # --- FILE HEADER ---
+        # ============================================================
+        # FILE HEADER
+        # ============================================================
         await f.write("FHS|^~\\&|||||||HOSP1||I\n")
+
+        # ============================================================
+        # BHS + Z03 INVOICE HEADER BLOCK
+        # ============================================================
         await f.write("BHS|^~\\&|||||202602~202602\n")
 
-        # --- Z03 HEADER BLOCK (IVC) ---
-        await f.write(
-            "MSH|^~\\&|||||||ZHC^Z03^ZHC_Z03|MSGID00001|P|2.6\n"
-        )
+        await f.write("MSH|^~\\&|||||||ZHC^Z03^ZHC_Z03|MSGID00001|P|2.6\n")
 
-        # IVC segment (invoice header)
         await f.write(
             f"IVC|ΤΠΥ-000003||423474|OR|NORM|FS|20260316|||"
             f"ΙΔΙΩΤΙΚΗ Μ.Η.Ν. ΚΕΝΤΡΟ ΟΡΑΣΗΣ ΗΠΕΙΡΟΥ Α.Ε.^^^^^^^^^75752|"
             f"ΕΟΠΥΥ||||||||||34436.09|34436.09|0.00||||997489660 6311\n"
         )
 
-        await f.write(f"BTS|1||34436.09\n")
+        await f.write("BTS|1\n")
 
-        # --- SECOND BATCH HEADER ---
-        await f.write("BHS|^~\\&|||||202602~202602\n")
-
-        # --- Z04 DETAIL BLOCKS ---
+        # ============================================================
+        # Z04 DETAIL BLOCKS (each inside its own BHS)
+        # ============================================================
         for idx, r in enumerate(discharges, start=2):
+
+            await f.write("BHS|^~\\&|||||202602~202602\n")
 
             msg_id = f"MSGID{idx:05d}"
 
@@ -110,7 +113,12 @@ async def generate_hl7_file(discharges, out_path):
                 f"ZSL|||||1|1|100.00|396.10|30.00|118.83|0.00||0|0|0.00|0.00|0|\n"
             )
 
-        # END OF FILE
-        await f.write(f"BTS|{len(discharges)}||0.00\n")
+            # BTS for this Z04 block
+            await f.write("BTS|1\n")
+
+        # ============================================================
+        # END OF FILE (NO FINAL BTS)
+        # ============================================================
+        await f.write("FHS|^~\\&||||||||||\n")
 
     return out_path

@@ -670,6 +670,25 @@ async def generate_hl7(from_date: str, to_date: str):
         "check_status": f"/job-status/{job_id}"
     }
 
+@app.get("/job-status/{job_id}")
+async def job_status(job_id: str):
+    job_id = job_id.strip()
+
+    async with async_session() as db:
+        result = await db.execute(select(HL7Job).where(HL7Job.job_id == job_id))
+        job = result.scalar_one_or_none()
+
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    return {
+        "job_id": job.job_id,
+        "status": job.status,
+        "updated_at": job.updated_at,
+        "download": f"/download/{job_id}" if job.file_data else None
+    }
+
+
 @app.get("/debug/job/{job_id}")
 async def debug_job(job_id: str):
     job_id = job_id.strip()

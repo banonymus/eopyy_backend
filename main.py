@@ -698,8 +698,9 @@ async def download(job_id: str):
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
+    # IMPORTANT: check file_data, NOT result_file
     if not job.file_data:
-        raise HTTPException(status_code=404, detail="HL7 file not available")
+        raise HTTPException(status_code=404, detail="Job completed but no file stored")
 
     return Response(
         content=job.file_data,
@@ -708,3 +709,4 @@ async def download(job_id: str):
             "Content-Disposition": f"attachment; filename={job_id}.hl7"
         }
     )
+

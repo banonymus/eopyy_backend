@@ -38,7 +38,6 @@ async def generate_hl7_file(discharges, out_path):
         # BHS + Z03 INVOICE HEADER BLOCK
         # ============================================================
         await f.write("BHS|^~\\&|||||202602~202602\n")
-
         await f.write("MSH|^~\\&|||||||ZHC^Z03^ZHC_Z03|MSGID00001|P|2.6\n")
 
         await f.write(
@@ -50,7 +49,7 @@ async def generate_hl7_file(discharges, out_path):
         await f.write("BTS|1\n")
 
         # ============================================================
-        # Z04 DETAIL BLOCKS (each inside its own BHS)
+        # Z04 DETAIL BLOCKS
         # ============================================================
         for idx, r in enumerate(discharges, start=2):
 
@@ -63,7 +62,7 @@ async def generate_hl7_file(discharges, out_path):
                 f"MSH|^~\\&|||||||ZHC^Z04^ZHC_Z04|{msg_id}|P|2.6\n"
             )
 
-            # PSG
+            # PSG  (FIXED: alt_visit_id must be present)
             await f.write(
                 f"PSG|{safe(r['ticket_number'])}|"
                 f"{fmt(r['discharge_datetime'])}|"
@@ -71,7 +70,7 @@ async def generate_hl7_file(discharges, out_path):
                 f"{fmt(r['discharge_datetime'])}||Y||1\n"
             )
 
-            # ZSG
+            # ZSG (FIXED: alt_visit_id must be present)
             await f.write(
                 f"ZSG|||||||0|||||||{safe(r['country_code'])}|||||"
                 f"{safe(r['ticket_number'])}|{safe(r['alt_visit_id'])}|0\n"
@@ -117,8 +116,11 @@ async def generate_hl7_file(discharges, out_path):
             await f.write("BTS|1\n")
 
         # ============================================================
-        # END OF FILE (NO FINAL BTS)
+        # FINAL BTS (FIXED: must reflect number of Z04 blocks)
         # ============================================================
+        await f.write(f"BTS|{len(discharges)}\n")
+
+        # END OF FILE
         await f.write("FHS|^~\\&||||||||||\n")
 
     return out_path

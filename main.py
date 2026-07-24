@@ -4,7 +4,7 @@ import os
 import logging
 from typing import Optional, List
 
-from fastapi import FastAPI, Depends, HTTPException, Request, status
+from fastapi import FastAPI, Depends, HTTPException, Request, status,Response
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -687,3 +687,24 @@ async def debug_job(job_id: str):
         "result_file": job.result_file,
         "updated_at": job.updated_at
     }
+@app.get("/download/{job_id}")
+async def download(job_id: str):
+    job_id = job_id.strip()
+
+    async with async_session() as db:
+        result = await db.execute(select(HL7Job).where(HL7Job.job_id == job_id))
+        job = result.scalar_one_or_none()
+
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    if not job.file_data:
+        raise HTTPException(status_code=404, detail="HL7 file not available")
+
+    return Response(
+        content=job.file_data,
+        media_type="text/plain",
+        headers={
+            "Content-Disposition": f"attachment; filename={job_id}.hl7"
+        }
+    )

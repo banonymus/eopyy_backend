@@ -73,11 +73,13 @@ class Discharge(Base):
 
 class HL7Job(Base):
     __tablename__ = "hl7_jobs"
+
     id = Column(Integer, primary_key=True)
     job_id = Column(String, unique=True, nullable=False)
     from_date = Column(Date, nullable=False)
     to_date = Column(Date, nullable=False)
     status = Column(String, nullable=False, default="pending")
-    result_file = Column(String)
+    result_file = Column(String, nullable=True)   # optional, keep for debugging
+    file_data = Column(Text, nullable=True)       # <-- NEW COLUMN
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

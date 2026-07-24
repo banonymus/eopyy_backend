@@ -3,6 +3,7 @@ import ssl
 import asyncio
 import logging
 import asyncpg
+import datetime
 from sqlalchemy import select
 from database import async_session
 from models import HL7Job
@@ -60,12 +61,23 @@ async def worker_loop():
 
                 discharges = [dict(r) for r in rows]
 
+                # Generate HL7 file
                 out_path = f"/tmp/{job.job_id}.hl7"
                 await generate_hl7_file(discharges, out_path)
 
+                # ---------------------------------------------------------
+                # NEW: Store HL7 content in Neon instead of filesystem path
+                # ---------------------------------------------------------
+                with open(out_path, "r", encoding="utf-8") as f:
+                    hl7_text = f.read()
+
+                job.file_data = hl7_text
+                job.result_file = None
                 job.status = "completed"
-                job.result_file = out_path
+                job.updated_at = datetime.datetime.utcnow().isoformat()
+
                 await db.commit()
+                # ---------------------------------------------------------
 
                 logger.info(f"📤 Completed job: {job.job_id}")
 
@@ -75,4 +87,3 @@ async def worker_loop():
 
 if __name__ == "__main__":
     asyncio.run(worker_loop())
-

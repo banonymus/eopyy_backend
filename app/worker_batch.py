@@ -74,7 +74,8 @@ async def worker_loop():
                 job.file_data = hl7_text
                 job.result_file = None
                 job.status = "completed"
-                job.updated_at = datetime.datetime.utcnow().isoformat()
+                job.updated_at = job.updated_at = datetime.datetime.utcnow()
+
 
                 await db.commit()
                 # ---------------------------------------------------------

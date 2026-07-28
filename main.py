@@ -145,9 +145,13 @@ if os.getenv("ENABLE_ROUTE_DUMP") == "1":
 # DB startup
 # ---------------------------------------------------------
 @app.on_event("startup")
-async def startup():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+async def startup_routes_dump():
+    logger.info("Resolved main.py: %s", __file__)
+    for route in app.routes:
+        path = getattr(route, "path", None)
+        methods = getattr(route, "methods", None)
+        if path:
+            logger.info("Route: %s %s", methods, path)
 
 
 # ---------------------------------------------------------
@@ -656,7 +660,6 @@ async def monitoring_index():
 async def generate_hl7(from_date: str, to_date: str, installation_code: str):
     job_id = f"hl7_discharges_{installation_code}_{from_date}_{to_date}"
 
-
     async with async_session() as db:
         job = HL7Job(
             job_id=job_id,
@@ -674,6 +677,7 @@ async def generate_hl7(from_date: str, to_date: str, installation_code: str):
         "job_id": job_id,
         "check_status": f"/job-status/{job_id}"
     }
+
 
 
 @app.get("/job-status/{job_id}")

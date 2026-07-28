@@ -1,3 +1,4 @@
+version: "1"
 services:
   - type: web
     name: eopyy-backend
@@ -32,3 +33,6 @@ services:
     envVars:
       - key: DATABASE_URL
         sync: false
+
+databases:
+  - name: neondb

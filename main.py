@@ -2,6 +2,7 @@
 import json
 import os
 import logging
+import datetime
 from typing import Optional, List
 
 from fastapi import FastAPI, Depends, HTTPException, Request, status,Response
@@ -655,23 +656,24 @@ async def monitoring_index():
 async def generate_hl7(from_date: str, to_date: str, installation_code: str):
     job_id = f"hl7_discharges_{installation_code}_{from_date}_{to_date}"
 
-    job = {
-        "job_id": job_id,
-        "type": "HL7_FILE_DISCHARGES",
-        "start_date": from_date,
-        "end_date": to_date,
-        "installation_code": installation_code
-    }
+    async with async_session() as db:
+        job = HL7Job(
+            job_id=job_id,
+            from_date=datetime.date.fromisoformat(from_date),
+            to_date=datetime.date.fromisoformat(to_date),
+            installation_code=installation_code,
+            status="queued_batch"
+        )
 
-    os.makedirs("/tmp/hl7_queue", exist_ok=True)
-    with open(f"/tmp/hl7_queue/{job_id}.json", "w") as f:
-        json.dump(job, f)
+        db.add(job)
+        await db.commit()
 
     return {
-        "status": "queued",
+        "status": "queued_batch",
         "job_id": job_id,
         "check_status": f"/job-status/{job_id}"
     }
+
 
 @app.get("/job-status/{job_id}")
 async def job_status(job_id: str):

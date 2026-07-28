@@ -54,7 +54,7 @@ async def worker_loop():
                 try:
                     result = await db.execute(
                         select(HL7Job)
-                        .where(HL7Job.status == "queued")
+                        .where(HL7Job.status == "queued_batch")
                         .order_by(HL7Job.created_at)
                         .limit(1)
                     )

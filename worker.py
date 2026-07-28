@@ -34,6 +34,17 @@ logger = logging.getLogger("eopyy-worker")
 DB_URL = os.getenv("DATABASE_URL")
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+
+def get_new_session():
+    engine = create_async_engine(
+        raw_url,
+        pool_pre_ping=True,
+        pool_recycle=1800,
+        echo=False
+    )
+    return async_sessionmaker(engine, expire_on_commit=False)()
+
 
 # ---------------------------------------------------------
 # MINIMAL NEON PATCH (POOL-SAFE)
@@ -337,16 +348,7 @@ async def process_discharge_row(pool, row):
 # ---------------------------------------------------------
 # MAIN LOOP
 # ---------------------------------------------------------
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 
-def get_new_session():
-    engine = create_async_engine(
-        raw_url,
-        pool_pre_ping=True,
-        pool_recycle=1800,
-        echo=False
-    )
-    return async_sessionmaker(engine, expire_on_commit=False)()
 
 
 async def worker_loop():

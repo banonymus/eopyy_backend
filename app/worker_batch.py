@@ -62,9 +62,20 @@ async def worker_loop():
 
                 discharges = [dict(r) for r in rows]
 
+                total_amount = sum(r.get("amount_total", 0) for r in discharges)
+                covered_amount = sum(r.get("amount_covered", 0) for r in discharges)
+                patient_amount = sum(r.get("amount_patient", 0) for r in discharges)
+
                 # Generate HL7 file
                 out_path = f"/tmp/{job.job_id}.hl7"
-                await generate_hl7_file(discharges, out_path)
+                await generate_hl7_file(
+                    discharges,
+                    out_path,
+                    job.installation_code,
+                    total_amount,
+                    covered_amount,
+                    patient_amount
+                )
 
                 # ---------------------------------------------------------
                 # NEW: Store HL7 content in Neon instead of filesystem path

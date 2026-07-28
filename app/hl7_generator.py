@@ -24,7 +24,14 @@ def fmt(dt):
 def safe(v):
     return "" if v is None else str(v)
 
-async def generate_hl7_file(discharges, out_path):
+async def generate_hl7_file(
+    discharges,
+    out_path,
+    job_installation_code,
+    total_amount,
+    covered_amount,
+    patient_amount
+):
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
 
     async with aiofiles.open(out_path, "w", encoding="utf-8") as f:
@@ -40,10 +47,13 @@ async def generate_hl7_file(discharges, out_path):
         await f.write("BHS|^~\\&|||||202602~202602\n")
         await f.write("MSH|^~\\&|||||||ZHC^Z03^ZHC_Z03|MSGID00001|P|2.6\n")
 
+        # DYNAMIC IVC
         await f.write(
             f"IVC|ΤΠΥ-000003||423474|OR|NORM|FS|20260316|||"
-            f"ΙΔΙΩΤΙΚΗ Μ.Η.Ν. ΚΕΝΤΡΟ ΟΡΑΣΗΣ ΗΠΕΙΡΟΥ Α.Ε.^^^^^^^^^75752|"
-            f"ΕΟΠΥΥ||||||||||34436.09|34436.09|0.00||||997489660 6311\n"
+            f"ΙΔΙΩΤΙΚΗ Μ.Η.Ν. ΚΕΝΤΡΟ ΟΡΑΣΗΣ ΗΠΕΙΡΟΥ Α.Ε.^^^^^^^^^{safe(job_installation_code)}|"
+            f"ΕΟΠΥΥ||||||||||"
+            f"{total_amount:.2f}|{covered_amount:.2f}|{patient_amount:.2f}"
+            f"||||997489660 6311\n"
         )
 
         await f.write("BTS|1\n")

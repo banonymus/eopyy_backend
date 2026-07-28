@@ -5,11 +5,28 @@ import json
 import logging
 import re
 import httpx
+import datetime
+
+import ssl
+
+raw_url = os.getenv("WORKER_DATABASE_URL")
+if not raw_url:
+    raise RuntimeError("WORKER_DATABASE_URL missing")
+
+# Remove ?sslmode=require if present
+if "sslmode=" in raw_url:
+    raw_url = raw_url.split("?")[0]
+
+ssl_ctx = ssl.create_default_context()
+
 
 from hl7_builder_worker import build_hl7_message
 from old_eopyy_client import submit_hl7
 from discarge_eopyy_client import submit_discarge_hl7
 from email_alerts import send_error_email
+from models import HL7Job
+from sqlalchemy import select
+from app.hl7_generator import generate_hl7_file
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("eopyy-worker")
@@ -320,55 +337,101 @@ async def process_discharge_row(pool, row):
 # ---------------------------------------------------------
 # MAIN LOOP
 # ---------------------------------------------------------
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+
+def get_new_session():
+    engine = create_async_engine(
+        raw_url,
+        pool_pre_ping=True,
+        pool_recycle=1800,
+        echo=False
+    )
+    return async_sessionmaker(engine, expire_on_commit=False)()
+
+
 async def worker_loop():
-    pool = await asyncpg.create_pool(DB_URL, min_size=1, max_size=5)
-    logger.info("Worker connected to DB (POOL MODE)")
+    logger.info("🚀 HL7 Worker started")
 
-    try:
-        while True:
+    while True:
+        try:
+            # NEW: recreate engine + session each loop
+            db = get_new_session()
 
-            async with pool.acquire() as conn:
-                await neon_retry(conn, conn.execute,
-                    """
-                    UPDATE worker_heartbeat
-                    SET last_beat = NOW()
-                    WHERE id = 1
-                    """
+            # ---------------------------------------------------------
+            # FETCH NEXT QUEUED JOB
+            # ---------------------------------------------------------
+            try:
+                result = await db.execute(
+                    select(HL7Job)
+                    .where(HL7Job.status == "queued")
+                    .order_by(HL7Job.created_at)
+                    .limit(1)
                 )
+            except Exception as exc:
+                logger.exception("SQLAlchemy SELECT failed")
 
-            async with pool.acquire() as conn:
-                admissions = await neon_retry(conn, conn.fetch,
-                    """
-                    SELECT * FROM admissions
-                    WHERE status='pending'
-                    ORDER BY created_at
-                    LIMIT 20
-                    """
-                )
+                if "InvalidCachedStatementError" in str(exc):
+                    logger.warning("⚠️ Invalid cached statement — full engine reset next loop")
+                    await asyncio.sleep(1)
+                    continue
 
-            async with pool.acquire() as conn:
-                discharges = await neon_retry(conn, conn.fetch,
-                    """
-                    SELECT * FROM discharges
-                    WHERE status='pending'
-                    ORDER BY created_at
-                    LIMIT 20
-                    """
-                )
+                raise
 
-            if not admissions and not discharges:
-                await asyncio.sleep(5)
+            job = result.scalar_one_or_none()
+
+            if not job:
+                await asyncio.sleep(2)
                 continue
 
-            for row in admissions:
-                await process_admission_row(pool, row)
+            logger.info(f"📥 Processing job: {job.job_id}")
 
-            for row in discharges:
-                await process_discharge_row(pool, row)
+            job.status = "processing"
+            await db.commit()
 
-    finally:
-        await pool.close()
+            start_hl7 = job.from_date.strftime("%Y%m%d000000")
+            end_hl7 = job.to_date.strftime("%Y%m%d235959")
 
+            conn = await asyncpg.connect(raw_url, ssl=ssl_ctx)
 
-if __name__ == "__main__":
-    asyncio.run(worker_loop())
+            rows = await conn.fetch("""
+                SELECT *
+                FROM discharges
+                WHERE discharge_datetime BETWEEN $1 AND $2
+                  AND installation_code = $3
+                ORDER BY discharge_datetime ASC
+            """, start_hl7, end_hl7, job.installation_code)
+
+            await conn.close()
+
+            discharges = [dict(r) for r in rows]
+
+            total_amount = sum(r.get("amount_total", 0) for r in discharges)
+            covered_amount = sum(r.get("amount_covered", 0) for r in discharges)
+            patient_amount = sum(r.get("amount_patient", 0) for r in discharges)
+
+            out_path = f"/tmp/{job.job_id}.hl7"
+
+            await generate_hl7_file(
+                discharges,
+                out_path,
+                job.installation_code,
+                total_amount,
+                covered_amount,
+                patient_amount
+            )
+
+            with open(out_path, "r", encoding="utf-8") as f:
+                hl7_text = f.read()
+
+            job.file_data = hl7_text
+            job.result_file = None
+            job.status = "completed"
+            job.updated_at = datetime.datetime.utcnow()
+
+            await db.commit()
+
+            logger.info(f"📤 Completed job: {job.job_id}")
+
+        except Exception:
+            logger.exception("Worker crashed")
+            await asyncio.sleep(5)

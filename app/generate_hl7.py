@@ -8,8 +8,8 @@ from datetime import datetime
 router = APIRouter()
 
 @router.get("/generate-hl7")
-async def generate_hl7(from_date: str, to_date: str, db: AsyncSession = Depends(get_session)):
-    job_id = f"hl7_discharges_{from_date}_{to_date}"
+async def generate_hl7(from_date: str, to_date: str, installation_code: str, db: AsyncSession = Depends(get_session)):
+    job_id = f"hl7_discharges_{installation_code}_{from_date}_{to_date}"
 
     # Check if job already exists
     result = await db.execute(select(HL7Job).where(HL7Job.job_id == job_id))
@@ -26,7 +26,8 @@ async def generate_hl7(from_date: str, to_date: str, db: AsyncSession = Depends(
         job_id=job_id,
         from_date=datetime.strptime(from_date, "%Y-%m-%d"),
         to_date=datetime.strptime(to_date, "%Y-%m-%d"),
-        status="queued"
+        installation_code=installation_code,
+        status="queued_batch"
     )
 
     db.add(job)
@@ -34,6 +35,6 @@ async def generate_hl7(from_date: str, to_date: str, db: AsyncSession = Depends(
 
     return {
         "job_id": job_id,
-        "status": "queued",
+        "status": "queued_batch",
         "check_status": f"/job-status/{job_id}"
     }

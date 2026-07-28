@@ -138,7 +138,8 @@ if os.getenv("ENABLE_ROUTE_DUMP") == "1":
     async def startup_routes_dump():
         logger.info("Resolved main.py: %s", __file__)
         for route in app.routes:
-            logger.info("Route: %s %s", getattr(route, "methods", None), route.path)
+            logger.info("Route: %s %s", getattr(route, "methods", None), getattr(route, "path", None)
+)
 
 
 # ---------------------------------------------------------

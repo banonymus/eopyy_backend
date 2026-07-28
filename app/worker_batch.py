@@ -71,6 +71,9 @@ async def worker_loop():
                 await asyncio.sleep(2)
                 continue
 
+            # IMPORTANT: attach job to session so updates persist
+            db.add(job)
+
             logger.info(f"📥 Processing job: {job.job_id}")
 
             job.status = "processing"
@@ -127,7 +130,7 @@ async def worker_loop():
                 hl7_text = f.read()
 
             job.file_data = hl7_text
-            job.result_file = None
+            job.result_file = out_path
             job.status = "completed"
             job.updated_at = datetime.datetime.utcnow()
 

@@ -26,7 +26,7 @@ services:
   - type: worker
     name: eopyy-worker-batch
     env: python
-    rootDir: .
+    rootDir: src
     buildCommand: pip install -r requirements.txt
     startCommand: python -m app.worker_batch
     envVars:

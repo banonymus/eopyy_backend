@@ -144,14 +144,6 @@ if os.getenv("ENABLE_ROUTE_DUMP") == "1":
 # ---------------------------------------------------------
 # DB startup
 # ---------------------------------------------------------
-@app.on_event("startup")
-async def startup_routes_dump():
-    logger.info("Resolved main.py: %s", __file__)
-    for route in app.routes:
-        path = getattr(route, "path", None)
-        methods = getattr(route, "methods", None)
-        if path:
-            logger.info("Route: %s %s", methods, path)
 
 
 # ---------------------------------------------------------

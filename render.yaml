@@ -7,7 +7,7 @@ services:
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: DATABASE_URL
-        fromDatabase: neondb
+        sync: false
       - key: API_KEY
         sync: false
       - key: API_HEADER
@@ -21,7 +21,7 @@ services:
     startCommand: python worker.py
     envVars:
       - key: DATABASE_URL
-        fromDatabase: neondb
+        sync: false
 
   - type: worker
     name: eopyy-worker-batch
@@ -31,7 +31,4 @@ services:
     startCommand: python -m app.worker_batch
     envVars:
       - key: DATABASE_URL
-        fromDatabase: neondb
-
-databases:
-  - name: neondb
+        sync: false

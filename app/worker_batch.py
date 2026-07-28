@@ -38,7 +38,7 @@ def get_new_session():
 # WORKER LOOP
 # ---------------------------------------------------------
 async def worker_loop():
-    logger.info("🚀 HL7 Worker started")
+    logger.info("worker_batch 🚀 HL7 Worker started")
 
     while True:
         try:
@@ -59,10 +59,10 @@ async def worker_loop():
                         .limit(1)
                     )
                 except Exception as exc:
-                    logger.exception("SQLAlchemy SELECT failed")
+                    logger.exception("worker_batch SQLAlchemy SELECT failed")
 
                     if "InvalidCachedStatementError" in str(exc):
-                        logger.warning("⚠️ Invalid cached statement — full engine reset next loop")
+                        logger.warning("worker_batch ⚠️ Invalid cached statement — full engine reset next loop")
                         await asyncio.sleep(1)
                         continue
 
@@ -77,7 +77,7 @@ async def worker_loop():
                 # IMPORTANT: attach job to session so updates persist
                 db.add(job)
 
-                logger.info(f"📥 Processing job: {job.job_id}")
+                logger.info(f"worker_batch 📥 Processing job: {job.job_id}")
 
                 job.status = "processing"
                 await db.commit()
@@ -141,8 +141,8 @@ async def worker_loop():
                 await db.flush()  # <-- REQUIRED
                 await db.commit()
 
-                logger.info(f"📤 Completed job: {job.job_id}")
+                logger.info(f"worker_batch 📤 Completed job: {job.job_id}")
 
         except Exception:
-            logger.exception("Worker crashed")
+            logger.exception("Worker_batch crashed")
             await asyncio.sleep(5)

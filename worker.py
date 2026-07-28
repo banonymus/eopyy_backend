@@ -416,12 +416,12 @@ async def worker_loop():
 
             job.file_data = hl7_text
             job.result_file = None
-            job.status = "completed"
+            job.status = "worker completed"
             job.updated_at = datetime.datetime.utcnow()
 
             await db.commit()
 
-            logger.info(f"📤 Completed job: {job.job_id}")
+            logger.info(f"worker 📤 Completed job: {job.job_id}")
 
         except Exception:
             logger.exception("Worker crashed")

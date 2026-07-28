@@ -32,7 +32,7 @@ def get_new_session():
         pool_recycle=1800,
         echo=False
     )
-    return async_sessionmaker(engine, expire_on_commit=False)()
+    return async_sessionmaker(engine, expire_on_commit=False)
 
 # ---------------------------------------------------------
 # WORKER LOOP
@@ -42,101 +42,104 @@ async def worker_loop():
 
     while True:
         try:
-            # NEW: recreate engine + session each loop
-            db = get_new_session()
+            # NEW: recreate engine + sessionmaker each loop
+            SessionLocal = get_new_session()
 
-            # ---------------------------------------------------------
-            # FETCH NEXT QUEUED JOB
-            # ---------------------------------------------------------
-            try:
-                result = await db.execute(
-                    select(HL7Job)
-                    .where(HL7Job.status == "queued")
-                    .order_by(HL7Job.created_at)
-                    .limit(1)
-                )
-            except Exception as exc:
-                logger.exception("SQLAlchemy SELECT failed")
+            # OPEN SESSION CORRECTLY
+            async with SessionLocal() as db:
 
-                if "InvalidCachedStatementError" in str(exc):
-                    logger.warning("⚠️ Invalid cached statement — full engine reset next loop")
-                    await asyncio.sleep(1)
+                # ---------------------------------------------------------
+                # FETCH NEXT QUEUED JOB
+                # ---------------------------------------------------------
+                try:
+                    result = await db.execute(
+                        select(HL7Job)
+                        .where(HL7Job.status == "queued")
+                        .order_by(HL7Job.created_at)
+                        .limit(1)
+                    )
+                except Exception as exc:
+                    logger.exception("SQLAlchemy SELECT failed")
+
+                    if "InvalidCachedStatementError" in str(exc):
+                        logger.warning("⚠️ Invalid cached statement — full engine reset next loop")
+                        await asyncio.sleep(1)
+                        continue
+
+                    raise
+
+                job = result.scalar_one_or_none()
+
+                if not job:
+                    await asyncio.sleep(2)
                     continue
 
-                raise
+                # IMPORTANT: attach job to session so updates persist
+                db.add(job)
 
-            job = result.scalar_one_or_none()
+                logger.info(f"📥 Processing job: {job.job_id}")
 
-            if not job:
-                await asyncio.sleep(2)
-                continue
+                job.status = "processing"
+                await db.commit()
 
-            # IMPORTANT: attach job to session so updates persist
-            db.add(job)
+                # ---------------------------------------------------------
+                # DATE RANGE → HL7 TIMESTAMP FORMAT
+                # ---------------------------------------------------------
+                start_hl7 = job.from_date.strftime("%Y%m%d000000")
+                end_hl7 = job.to_date.strftime("%Y%m%d235959")
 
-            logger.info(f"📥 Processing job: {job.job_id}")
+                # ---------------------------------------------------------
+                # FETCH DISCHARGES FOR THIS INSTALLATION
+                # ---------------------------------------------------------
+                conn = await asyncpg.connect(raw_url, ssl=ssl_ctx)
 
-            job.status = "processing"
-            await db.commit()
+                rows = await conn.fetch("""
+                    SELECT *
+                    FROM discharges
+                    WHERE discharge_datetime BETWEEN $1 AND $2
+                      AND installation_code = $3
+                    ORDER BY discharge_datetime ASC
+                """, start_hl7, end_hl7, job.installation_code)
 
-            # ---------------------------------------------------------
-            # DATE RANGE → HL7 TIMESTAMP FORMAT
-            # ---------------------------------------------------------
-            start_hl7 = job.from_date.strftime("%Y%m%d000000")
-            end_hl7 = job.to_date.strftime("%Y%m%d235959")
+                await conn.close()
 
-            # ---------------------------------------------------------
-            # FETCH DISCHARGES FOR THIS INSTALLATION
-            # ---------------------------------------------------------
-            conn = await asyncpg.connect(raw_url, ssl=ssl_ctx)
+                discharges = [dict(r) for r in rows]
 
-            rows = await conn.fetch("""
-                SELECT *
-                FROM discharges
-                WHERE discharge_datetime BETWEEN $1 AND $2
-                  AND installation_code = $3
-                ORDER BY discharge_datetime ASC
-            """, start_hl7, end_hl7, job.installation_code)
+                # ---------------------------------------------------------
+                # DYNAMIC Z03 TOTALS
+                # ---------------------------------------------------------
+                total_amount = sum(r.get("amount_total", 0) for r in discharges)
+                covered_amount = sum(r.get("amount_covered", 0) for r in discharges)
+                patient_amount = sum(r.get("amount_patient", 0) for r in discharges)
 
-            await conn.close()
+                # ---------------------------------------------------------
+                # GENERATE HL7 FILE
+                # ---------------------------------------------------------
+                out_path = f"/tmp/{job.job_id}.hl7"
 
-            discharges = [dict(r) for r in rows]
+                await generate_hl7_file(
+                    discharges,
+                    out_path,
+                    job.installation_code,
+                    total_amount,
+                    covered_amount,
+                    patient_amount
+                )
 
-            # ---------------------------------------------------------
-            # DYNAMIC Z03 TOTALS
-            # ---------------------------------------------------------
-            total_amount = sum(r.get("amount_total", 0) for r in discharges)
-            covered_amount = sum(r.get("amount_covered", 0) for r in discharges)
-            patient_amount = sum(r.get("amount_patient", 0) for r in discharges)
+                # ---------------------------------------------------------
+                # STORE HL7 CONTENT IN NEON
+                # ---------------------------------------------------------
+                with open(out_path, "r", encoding="utf-8") as f:
+                    hl7_text = f.read()
 
-            # ---------------------------------------------------------
-            # GENERATE HL7 FILE
-            # ---------------------------------------------------------
-            out_path = f"/tmp/{job.job_id}.hl7"
+                job.file_data = hl7_text
+                job.result_file = out_path
+                job.status = "completed"
+                job.updated_at = datetime.datetime.utcnow()
 
-            await generate_hl7_file(
-                discharges,
-                out_path,
-                job.installation_code,
-                total_amount,
-                covered_amount,
-                patient_amount
-            )
+                await db.commit()
 
-            # ---------------------------------------------------------
-            # STORE HL7 CONTENT IN NEON
-            # ---------------------------------------------------------
-            with open(out_path, "r", encoding="utf-8") as f:
-                hl7_text = f.read()
-
-            job.file_data = hl7_text
-            job.result_file = out_path
-            job.status = "completed"
-            job.updated_at = datetime.datetime.utcnow()
-
-            await db.commit()
-
-            logger.info(f"📤 Completed job: {job.job_id}")
+                logger.info(f"📤 Completed job: {job.job_id}")
 
         except Exception:
             logger.exception("Worker crashed")

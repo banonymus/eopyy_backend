@@ -83,3 +83,5 @@ class HL7Job(Base):
     file_data = Column(Text, nullable=True)       # <-- NEW COLUMN
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    installation_code = Column(String, nullable=True)
+

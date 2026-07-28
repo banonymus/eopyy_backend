@@ -54,8 +54,9 @@ async def worker_loop():
                     SELECT *
                     FROM discharges
                     WHERE discharge_datetime BETWEEN $1 AND $2
+                    AND installation_code = $3
                     ORDER BY discharge_datetime ASC
-                """, start_hl7, end_hl7)
+                """, start_hl7, end_hl7,job.installation_code)
 
                 await conn.close()
 

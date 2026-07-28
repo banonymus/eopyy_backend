@@ -115,7 +115,7 @@ async def worker_loop():
                 # ---------------------------------------------------------
                 # GENERATE HL7 FILE
                 # ---------------------------------------------------------
-                out_path = f"/tmp/{job.job_id}.hl7"
+                out_path = f"/tmp/worker_batch{job.job_id}.hl7"
 
                 await generate_hl7_file(
                     discharges,

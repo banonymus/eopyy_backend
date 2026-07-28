@@ -137,6 +137,8 @@ async def worker_loop():
                 job.status = "completed"
                 job.updated_at = datetime.datetime.utcnow()
 
+                db.add(job)  # <-- REQUIRED
+                await db.flush()  # <-- REQUIRED
                 await db.commit()
 
                 logger.info(f"📤 Completed job: {job.job_id}")

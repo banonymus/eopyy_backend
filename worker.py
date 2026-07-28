@@ -345,7 +345,7 @@ async def process_discharge_row(pool, row):
 # MAIN WORKER LOOP (FINAL FIXED VERSION)
 # ---------------------------------------------------------
 async def worker_loop():
-    logger.info("🚀 HL7 Worker started")
+    logger.info("worker 🚀 HL7 Worker started")
 
     while True:
         try:
@@ -359,10 +359,10 @@ async def worker_loop():
                     .limit(1)
                 )
             except Exception as exc:
-                logger.exception("SQLAlchemy SELECT failed")
+                logger.exception("worker SQLAlchemy SELECT failed")
 
                 if "InvalidCachedStatementError" in str(exc):
-                    logger.warning("⚠️ Invalid cached statement — full engine reset next loop")
+                    logger.warning("Worker ⚠️ Invalid cached statement — full engine reset next loop")
                     await asyncio.sleep(1)
                     continue
 
@@ -374,7 +374,7 @@ async def worker_loop():
                 await asyncio.sleep(2)
                 continue
 
-            logger.info(f"📥 Processing job: {job.job_id}")
+            logger.info(f"worker 📥 Processing job: {job.job_id}")
 
             job.status = "processing"
             await db.commit()
@@ -400,7 +400,7 @@ async def worker_loop():
             covered_amount = sum(r.get("amount_covered", 0) for r in discharges)
             patient_amount = sum(r.get("amount_patient", 0) for r in discharges)
 
-            out_path = f"/tmp/{job.job_id}.hl7"
+            out_path = f"/tmp/worker{job.job_id}.hl7"
 
             await generate_hl7_file(
                 discharges,

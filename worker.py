@@ -6,20 +6,23 @@ import logging
 import re
 import httpx
 import datetime
-
 import ssl
 
+# ---------------------------------------------------------
+# DATABASE URL + SSL FIX
+# ---------------------------------------------------------
 raw_url = os.getenv("WORKER_DATABASE_URL")
 if not raw_url:
     raise RuntimeError("WORKER_DATABASE_URL missing")
 
-# Remove ?sslmode=require if present
 if "sslmode=" in raw_url:
     raw_url = raw_url.split("?")[0]
 
 ssl_ctx = ssl.create_default_context()
 
-
+# ---------------------------------------------------------
+# IMPORTS
+# ---------------------------------------------------------
 from hl7_builder_worker import build_hl7_message
 from old_eopyy_client import submit_hl7
 from discarge_eopyy_client import submit_discarge_hl7
@@ -36,6 +39,9 @@ WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 
+# ---------------------------------------------------------
+# ENGINE RECREATION (FINAL FIX FOR NEON)
+# ---------------------------------------------------------
 def get_new_session():
     engine = create_async_engine(
         raw_url,
@@ -45,21 +51,15 @@ def get_new_session():
     )
     return async_sessionmaker(engine, expire_on_commit=False)()
 
-
 # ---------------------------------------------------------
 # MINIMAL NEON PATCH (POOL-SAFE)
 # ---------------------------------------------------------
 async def neon_retry(conn, method, *args):
-    """
-    Retry once if Neon invalidates a prepared statement.
-    Works correctly only when using a pool.
-    """
     try:
         return await method(*args)
     except (asyncpg.InvalidCachedStatementError, asyncpg.exceptions._base.InterfaceError):
         logger.warning("Neon invalidated prepared statement — retrying with fresh connection")
         return await method(*args)
-
 
 # ---------------------------------------------------------
 # HL7 PARSER
@@ -79,7 +79,6 @@ def parse_hl7_response(raw):
 
     return msa_code, message_id, err
 
-
 # ---------------------------------------------------------
 # WEBHOOK
 # ---------------------------------------------------------
@@ -92,7 +91,6 @@ async def send_webhook(event_type: str, payload: dict):
             await client.post(WEBHOOK_URL, json={"event": event_type, "data": payload})
         except Exception as e:
             logger.error(f"Webhook failed: {e}")
-
 
 # ---------------------------------------------------------
 # PROCESS ADMISSION
@@ -215,7 +213,6 @@ async def process_admission_row(pool, row):
         })
 
         send_error_email(ticket, error_msg)
-
 
 # ---------------------------------------------------------
 # PROCESS DISCHARGE
@@ -344,24 +341,16 @@ async def process_discharge_row(pool, row):
 
         send_error_email(ticket, error_msg)
 
-
 # ---------------------------------------------------------
-# MAIN LOOP
+# MAIN WORKER LOOP (FINAL FIXED VERSION)
 # ---------------------------------------------------------
-
-
-
 async def worker_loop():
     logger.info("🚀 HL7 Worker started")
 
     while True:
         try:
-            # NEW: recreate engine + session each loop
             db = get_new_session()
 
-            # ---------------------------------------------------------
-            # FETCH NEXT QUEUED JOB
-            # ---------------------------------------------------------
             try:
                 result = await db.execute(
                     select(HL7Job)

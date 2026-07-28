@@ -656,6 +656,7 @@ async def monitoring_index():
 async def generate_hl7(from_date: str, to_date: str, installation_code: str):
     job_id = f"hl7_discharges_{installation_code}_{from_date}_{to_date}"
 
+
     async with async_session() as db:
         job = HL7Job(
             job_id=job_id,

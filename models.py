@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, BigInteger, DateTime, Date
+from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, BigInteger, DateTime, Date, Float
 from sqlalchemy.sql import func
 from sqlalchemy.orm import declarative_base
 
@@ -68,6 +68,9 @@ class Discharge(Base):
     hl7_a03 = Column(Text)
     raw_response = Column(Text)
     status = Column(String)
+    total_amount = Column(Float)
+    covered_amount = Column(Float)
+    patient_amount = Column(Float)
     created_at = Column(DateTime, server_default=func.now())
 
 

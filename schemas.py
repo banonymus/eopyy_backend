@@ -108,6 +108,9 @@ class DischargeBase(BaseModel):
     hl7_a03: Optional[str] = None
     raw_response: Optional[str] = None
     status: Optional[str] = None
+    total_amount: Optional[float] = None
+    covered_amount: Optional[float] = None
+    patient_amount: Optional[float] = None
 
 class DischargeCreate(DischargeBase):
     ticket_number: str

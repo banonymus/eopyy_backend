@@ -12,6 +12,6 @@ jinja2
 lxml
 httpx
 aiofiles
-psycopg2-binary
+
 
 

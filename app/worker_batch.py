@@ -4,8 +4,6 @@ import asyncio
 import logging
 import asyncpg
 import datetime
-from sqlalchemy import select
-from models import HL7Job
 from app.hl7_generator import generate_hl7_file
 
 logging.basicConfig(level=logging.INFO)
@@ -13,135 +11,109 @@ logger = logging.getLogger("hl7-worker")
 
 raw_url = os.getenv("WORKER_DATABASE_URL")
 if not raw_url:
-    raise RuntimeError("DATABASE_URL missing")
-
-if "sslmode=" in raw_url:
-    raw_url = raw_url.split("?")[0]
+    raise RuntimeError("WORKER_DATABASE_URL missing")
 
 ssl_ctx = ssl.create_default_context()
 
 # ---------------------------------------------------------
-# NEW: Create fresh engine + sessionmaker each loop
-# ---------------------------------------------------------
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
-
-def get_new_session():
-    engine = create_async_engine(
-        raw_url,
-        pool_pre_ping=True,
-        pool_recycle=1800,
-        echo=False
-    )
-    return async_sessionmaker(engine, expire_on_commit=False)
-
-# ---------------------------------------------------------
-# WORKER LOOP
+# WORKER LOOP (pure asyncpg)
 # ---------------------------------------------------------
 async def worker_loop():
     logger.info("worker_batch 🚀 HL7 Worker started")
 
     while True:
         try:
-            # NEW: recreate engine + sessionmaker each loop
-            SessionLocal = get_new_session()
+            # ---------------------------------------------------------
+            # CONNECT TO NEON
+            # ---------------------------------------------------------
+            conn = await asyncpg.connect(raw_url, ssl=ssl_ctx)
 
-            # OPEN SESSION CORRECTLY
-            async with SessionLocal() as db:
+            # ---------------------------------------------------------
+            # FETCH NEXT QUEUED JOB
+            # ---------------------------------------------------------
+            job = await conn.fetchrow("""
+                SELECT *
+                FROM hl7_jobs
+                WHERE status = 'queued_batch'
+                ORDER BY created_at
+                LIMIT 1
+            """)
 
-                # ---------------------------------------------------------
-                # FETCH NEXT QUEUED JOB
-                # ---------------------------------------------------------
-                try:
-                    result = await db.execute(
-                        select(HL7Job)
-                        .where(HL7Job.status == "queued_batch")
-                        .order_by(HL7Job.created_at)
-                        .limit(1)
-                    )
-                except Exception as exc:
-                    logger.exception("worker_batch SQLAlchemy SELECT failed")
-
-                    if "InvalidCachedStatementError" in str(exc):
-                        logger.warning("worker_batch ⚠️ Invalid cached statement — full engine reset next loop")
-                        await asyncio.sleep(1)
-                        continue
-
-                    raise
-
-                job = result.scalar_one_or_none()
-
-                if not job:
-                    await asyncio.sleep(2)
-                    continue
-
-                # IMPORTANT: attach job to session so updates persist
-                db.add(job)
-
-                logger.info(f"worker_batch 📥 Processing job: {job.job_id}")
-
-                job.status = "processing"
-                await db.commit()
-
-                # ---------------------------------------------------------
-                # DATE RANGE → HL7 TIMESTAMP FORMAT
-                # ---------------------------------------------------------
-                start_hl7 = job.from_date.strftime("%Y%m%d000000")
-                end_hl7 = job.to_date.strftime("%Y%m%d235959")
-
-                # ---------------------------------------------------------
-                # FETCH DISCHARGES FOR THIS INSTALLATION
-                # ---------------------------------------------------------
-                conn = await asyncpg.connect(raw_url, ssl=ssl_ctx)
-
-                rows = await conn.fetch("""
-                    SELECT *
-                    FROM discharges
-                    WHERE discharge_datetime BETWEEN $1 AND $2
-                      AND installation_code = $3
-                    ORDER BY discharge_datetime ASC
-                """, start_hl7, end_hl7, job.installation_code)
-
+            if not job:
                 await conn.close()
+                await asyncio.sleep(2)
+                continue
 
-                discharges = [dict(r) for r in rows]
+            job_id = job["job_id"]
+            logger.info(f"worker_batch 📥 Processing job: {job_id}")
 
-                # ---------------------------------------------------------
-                # DYNAMIC Z03 TOTALS
-                # ---------------------------------------------------------
-                total_amount = sum(r.get("amount_total", 0) for r in discharges)
-                covered_amount = sum(r.get("amount_covered", 0) for r in discharges)
-                patient_amount = sum(r.get("amount_patient", 0) for r in discharges)
+            # ---------------------------------------------------------
+            # MARK AS PROCESSING
+            # ---------------------------------------------------------
+            await conn.execute("""
+                UPDATE hl7_jobs
+                SET status = 'processing'
+                WHERE job_id = $1
+            """, job_id)
 
-                # ---------------------------------------------------------
-                # GENERATE HL7 FILE
-                # ---------------------------------------------------------
-                out_path = f"/tmp/worker_batch{job.job_id}.hl7"
+            # ---------------------------------------------------------
+            # DATE RANGE → HL7 TIMESTAMP FORMAT
+            # ---------------------------------------------------------
+            start_hl7 = job["from_date"].strftime("%Y%m%d000000")
+            end_hl7 = job["to_date"].strftime("%Y%m%d235959")
 
-                await generate_hl7_file(
-                    discharges,
-                    out_path,
-                    job.installation_code,
-                    total_amount,
-                    covered_amount,
-                    patient_amount
-                )
+            # ---------------------------------------------------------
+            # FETCH DISCHARGES
+            # ---------------------------------------------------------
+            rows = await conn.fetch("""
+                SELECT *
+                FROM discharges
+                WHERE discharge_datetime BETWEEN $1 AND $2
+                  AND installation_code = $3
+                ORDER BY discharge_datetime ASC
+            """, start_hl7, end_hl7, job["installation_code"])
 
-                # ---------------------------------------------------------
-                # STORE HL7 CONTENT IN NEON
-                # ---------------------------------------------------------
-                with open(out_path, "r", encoding="utf-8") as f:
-                    hl7_text = f.read()
+            discharges = [dict(r) for r in rows]
 
-                job.file_data = hl7_text
-                job.result_file = out_path
-                job.status = "completed"
-                job.updated_at = datetime.datetime.utcnow()
+            # ---------------------------------------------------------
+            # DYNAMIC Z03 TOTALS
+            # ---------------------------------------------------------
+            total_amount = sum(r.get("amount_total", 0) for r in discharges)
+            covered_amount = sum(r.get("amount_covered", 0) for r in discharges)
+            patient_amount = sum(r.get("amount_patient", 0) for r in discharges)
 
-                db.add(job)  # <-- REQUIRED
-                await db.flush()  # <-- REQUIRED
-                await db.commit()
+            # ---------------------------------------------------------
+            # GENERATE HL7 FILE
+            # ---------------------------------------------------------
+            out_path = f"/tmp/{job_id}.hl7"
 
-                logger.info(f"worker_batch 📤 Completed job: {job.job_id}")
+            await generate_hl7_file(
+                discharges,
+                out_path,
+                job["installation_code"],
+                total_amount,
+                covered_amount,
+                patient_amount
+            )
+
+            with open(out_path, "r", encoding="utf-8") as f:
+                hl7_text = f.read()
+
+            # ---------------------------------------------------------
+            # STORE HL7 CONTENT IN NEON
+            # ---------------------------------------------------------
+            await conn.execute("""
+                UPDATE hl7_jobs
+                SET status = 'completed',
+                    file_data = $1,
+                    result_file = $2,
+                    updated_at = $3
+                WHERE job_id = $4
+            """, hl7_text, out_path, datetime.datetime.utcnow(), job_id)
+
+            await conn.close()
+
+            logger.info(f"worker_batch 📤 Completed job: {job_id}")
 
         except Exception:
             logger.exception("Worker_batch crashed")

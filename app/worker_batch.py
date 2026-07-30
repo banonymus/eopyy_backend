@@ -65,14 +65,23 @@ async def worker_loop():
             # ---------------------------------------------------------
             # FETCH DISCHARGES
             # ---------------------------------------------------------
-            rows = await conn.fetch("""
+            country = job.get("country_code")
+
+            query = """
                 SELECT *
                 FROM discharges
                 WHERE discharge_datetime BETWEEN $1 AND $2
                   AND installation_code = $3
-                ORDER BY discharge_datetime ASC
-            """, start_hl7, end_hl7, job["installation_code"])
+            """
 
+            if country == "GR":
+                query += " AND country_code = 'GR'"
+            elif country == "**":
+                query += " AND country_code <> 'GR'"
+
+            query += " ORDER BY discharge_datetime ASC"
+
+            rows = await conn.fetch(query, start_hl7, end_hl7, job["installation_code"])
             discharges = [dict(r) for r in rows]
 
             # ---------------------------------------------------------

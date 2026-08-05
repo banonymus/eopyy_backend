@@ -27,6 +27,7 @@ def safe(v):
 async def generate_hl7_file(
     discharges,
     out_path,
+    job_id,
     job_installation_code,
     total_amount,
     covered_amount,
@@ -44,7 +45,22 @@ async def generate_hl7_file(
         # ============================================================
         # BHS + Z03 INVOICE HEADER BLOCK
         # ============================================================
-        await f.write("BHS|^~\\&|||||202602~202602\n")
+        #job_id = job["job_id"]
+        # Example: hl7_discharges_75752_2026-01-01_2026-05-05
+
+        parts = job_id.split("_")
+
+        start_date = parts[-2]  # "2026-01-01"
+        end_date = parts[-1]  # "2026-05-05"
+
+        start_year, start_month, _ = start_date.split("-")
+        end_year, end_month, _ = end_date.split("-")
+
+        bhs_period = f"{start_year}{start_month}~{end_year}{end_month}"
+
+        await f.write(f"BHS|^~\\&|||||{bhs_period}\n")
+
+
         await f.write("MSH|^~\\&|||||||ZHC^Z03^ZHC_Z03|MSGID00001|P|2.6\n")
 
         # DYNAMIC IVC

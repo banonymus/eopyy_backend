@@ -99,6 +99,7 @@ async def worker_loop():
             await generate_hl7_file(
                 discharges,
                 out_path,
+                job_id,
                 job["installation_code"],
                 total_amount,
                 covered_amount,

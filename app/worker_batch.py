@@ -128,3 +128,10 @@ async def worker_loop():
         except Exception:
             logger.exception("Worker_batch crashed")
             await asyncio.sleep(5)
+
+# ---------------------------------------------------------
+# ENTRYPOINT
+# ---------------------------------------------------------
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(worker_loop())

@@ -1,5 +1,9 @@
 version: "1"
+
 services:
+  # -----------------------------------------------------------
+  # WEB API SERVICE
+  # -----------------------------------------------------------
   - type: web
     name: eopyy-backend
     env: python
@@ -14,16 +18,22 @@ services:
       - key: API_HEADER
         value: X-API-Key
 
+  # -----------------------------------------------------------
+  # REALTIME WORKER (corrected)
+  # -----------------------------------------------------------
   - type: worker
     name: eopyy-worker-realtime
     env: python
     rootDir: .
     buildCommand: pip install -r requirements.txt
-    startCommand: python worker.py
+    startCommand: python -m app.worker_realtime
     envVars:
       - key: DATABASE_URL
         sync: false
 
+  # -----------------------------------------------------------
+  # BATCH WORKER (already correct)
+  # -----------------------------------------------------------
   - type: worker
     name: eopyy-worker-batch
     env: python

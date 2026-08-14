@@ -118,20 +118,21 @@ def build_NK1(amka, nk1_ama, last, first):
 def build_PV1(location_code, doctor_code, ticket_number, admit_datetime, alt_visit_id=None):
     admit_datetime = admit_datetime[:12]
 
-    # PV1 + 50 fields = 51 fields total (indexes 0..50)
-    pv1 = ["PV1"] + [""] * 50
+    # PV1 must have EXACTLY 50 fields (indexes 0..49)
+    pv1 = [""] * 50
 
-    pv1[2] = "I"                       # PV1.2 Patient Class
-    pv1[3] = location_code             # PV1.3 Assigned Patient Location
-    pv1[7] = doctor_code               # PV1.7 Attending Doctor
-    pv1[19] = ticket_number            # PV1.19 Visit Number
-    pv1[44] = admit_datetime           # PV1.44 Admit Date/Time
+    pv1[0] = "PV1"              # Segment name
+    pv1[1] = "I"                # PV1.1 Patient Class
+    pv1[2] = location_code      # PV1.2 Assigned Patient Location
+    pv1[6] = doctor_code        # PV1.7 Attending Doctor
+    pv1[18] = ticket_number     # PV1.19 Visit Number
+    pv1[43] = admit_datetime    # PV1.44 Admit Date/Time
 
-    # PV1.50 must exist — use ticket_number if no alt ID provided
-    pv1[50] = alt_visit_id if alt_visit_id else ticket_number
-
+    # PV1.50 (index 49) must exist
+    pv1[49] = alt_visit_id if alt_visit_id else ticket_number
 
     return "|".join(pv1)
+
 
 
 

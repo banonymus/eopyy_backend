@@ -151,7 +151,10 @@ if os.getenv("ENABLE_ROUTE_DUMP") == "1":
 # Admissions
 # ---------------------------------------------------------
 @app.post("/admissions", response_model=AdmissionRead)
-async def create_or_upsert_admission(data: AdmissionCreate, db: AsyncSession = Depends(get_session)):
+async def create_or_upsert_admission(
+    data: AdmissionCreate,
+    db: AsyncSession = Depends(get_session)
+):
     if not data.ticket_number:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -164,9 +167,9 @@ async def create_or_upsert_admission(data: AdmissionCreate, db: AsyncSession = D
     )
     existing = result.scalar_one_or_none()
 
-    # -----------------------------
+    # ----------------------------------------------------
     # UPDATE EXISTING ADMISSION
-    # -----------------------------
+    # ----------------------------------------------------
     if existing:
         update_data = data.dict(exclude_unset=True)
         for field, value in update_data.items():
@@ -176,7 +179,6 @@ async def create_or_upsert_admission(data: AdmissionCreate, db: AsyncSession = D
         await db.commit()
         await db.refresh(existing)
 
-        # Return full info including HL7 + raw_response
         return JSONResponse(
             status_code=200,
             content={
@@ -190,9 +192,9 @@ async def create_or_upsert_admission(data: AdmissionCreate, db: AsyncSession = D
             }
         )
 
-    # -----------------------------
+    # ----------------------------------------------------
     # CREATE NEW ADMISSION
-    # -----------------------------
+    # ----------------------------------------------------
     adm = Admission(**data.dict())
     db.add(adm)
 
@@ -200,11 +202,13 @@ async def create_or_upsert_admission(data: AdmissionCreate, db: AsyncSession = D
         await db.commit()
     except IntegrityError:
         await db.rollback()
+
         # Fetch existing record
         result = await db.execute(
             select(Admission).where(Admission.ticket_number == data.ticket_number)
         )
         existing = result.scalar_one_or_none()
+
         if existing:
             return JSONResponse(
                 status_code=200,
@@ -218,13 +222,14 @@ async def create_or_upsert_admission(data: AdmissionCreate, db: AsyncSession = D
                     "record": jsonable_encoder(existing)
                 }
             )
+
         raise HTTPException(status_code=500, detail="Could not create admission")
 
     await db.refresh(adm)
 
-    # -----------------------------
+    # ----------------------------------------------------
     # RETURN FULL RESPONSE TO POSTMAN
-    # -----------------------------
+    # ----------------------------------------------------
     return JSONResponse(
         status_code=201,
         content={
@@ -237,7 +242,6 @@ async def create_or_upsert_admission(data: AdmissionCreate, db: AsyncSession = D
             "record": jsonable_encoder(adm)
         }
     )
-
 
 
 @app.get("/admissions/{ticket_number}", response_model=AdmissionRead)

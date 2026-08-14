@@ -120,7 +120,7 @@ async def process_admission_row(pool, row):
 
         raw_response = submit_hl7(hl7)
         msa_code, message_id, err = parse_hl7_response(raw_response)
-
+        # SQLAlchemy update (FastAPI sees correct values)
         await save_worker_results(ticket, hl7, raw_response, msa_code)
         if msa_code == "AA":
             async with pool.acquire() as conn:
@@ -347,11 +347,37 @@ async def process_discharge_row(pool, row):
 # ---------------------------------------------------------
 async def worker_loop():
     logger.info("worker 🚀 HL7 Worker started")
-
+    # -----------------------------------------
+    # CREATE ASYNCPG POOL (needed for admissions)
+    # -----------------------------------------
+    pool = await asyncpg.create_pool(raw_url, ssl=ssl_ctx)
     while True:
         try:
             db = get_new_session()
 
+            # -----------------------------------------
+            # PROCESS SINGLE ADMISSION JOBS FIRST
+            # -----------------------------------------
+            conn = await asyncpg.connect(raw_url, ssl=ssl_ctx)
+
+            row = await conn.fetchrow("""
+                SELECT *
+                FROM admissions
+                WHERE status = 'queued'
+                ORDER BY created_at ASC
+                LIMIT 1
+            """)
+
+            await conn.close()
+
+            if row:
+                # admission found → process it
+                await process_admission_row(pool, row)
+                continue   # go to next loop iteration
+
+            # -----------------------------------------
+            # THEN PROCESS HL7Job (batch discharges)
+            # -----------------------------------------
             try:
                 result = await db.execute(
                     select(HL7Job)

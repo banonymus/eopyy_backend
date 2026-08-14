@@ -74,11 +74,9 @@ API_HEADER: str = (os.getenv("API_HEADER") or CONFIG_API_HEADER or "X-API-Key")
 async def verify_api_key(request: Request, call_next):
     path = request.url.path
 
-    # Allow HL7 endpoints without API key
-    if path.startswith("/generate-hl7") or path.startswith("/job-status") or path.startswith("/download"):
-        return await call_next(request)
-
+    # Public endpoints (Render health checks, docs, monitoring)
     PUBLIC_PATHS = {
+        "/",
         "/health",
         "/docs",
         "/openapi.json",
@@ -97,34 +95,27 @@ async def verify_api_key(request: Request, call_next):
         "/debug/job",
     }
 
-    async def verify_api_key(request: Request, call_next):
-        if request.url.path == "/":
-            return await call_next(request)
-
-        api_key = request.headers.get("X-API-Key")
-        if api_key != os.getenv("API_KEY"):
-            raise HTTPException(status_code=401, detail="Unauthorized")
-
+    # Allow exact matches OR prefix matches
+    if path in PUBLIC_PATHS or any(path.startswith(p) for p in PUBLIC_PATHS):
         return await call_next(request)
 
-    # Allow exact matches OR any prefix match
-    if any(path == p or path.startswith(p) for p in PUBLIC_PATHS):
+    # Allow HL7 worker endpoints
+    if path.startswith("/generate-hl7") or path.startswith("/job-status") or path.startswith("/download"):
         return await call_next(request)
 
+    # Allow webhooks
     if path.startswith("/webhooks/"):
         return await call_next(request)
 
+    # API key check
     api_key = (
-        request.headers.get(API_HEADER)
-        or request.headers.get(API_HEADER.lower())
-        or request.headers.get(API_HEADER.upper())
-        or request.headers.get("X-API-Key")
+        request.headers.get("X-API-Key")
         or request.headers.get("x-api-key")
         or request.query_params.get("api_key")
     )
 
-    if EXPECTED_KEY and api_key != EXPECTED_KEY:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
+    if api_key != os.getenv("API_KEY"):
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
     return await call_next(request)
 

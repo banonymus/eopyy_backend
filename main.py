@@ -70,6 +70,11 @@ API_HEADER: str = (os.getenv("API_HEADER") or CONFIG_API_HEADER or "X-API-Key")
 # ---------------------------------------------------------
 # Middleware: API Key Verification
 # ---------------------------------------------------------
+@app.get("/")
+async def root():
+    return {"status": "ok"}
+
+
 @app.middleware("http")
 async def verify_api_key(request: Request, call_next):
     path = request.url.path

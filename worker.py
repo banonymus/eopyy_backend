@@ -394,7 +394,18 @@ async def worker_loop():
     logger.info("worker 🚀 HL7 Worker started")
 
     # shared asyncpg pool
-    pool = await asyncpg.create_pool(raw_url, ssl=ssl_ctx)
+    # Create pool with retry (Neon needs 1–2 seconds)
+    pool = None
+    for _ in range(10):
+        try:
+            pool = await asyncpg.create_pool(raw_url, ssl=ssl_ctx)
+            break
+        except Exception as e:
+            logger.warning(f"Pool creation failed, retrying... {e}")
+            await asyncio.sleep(1)
+
+    if pool is None:
+        raise RuntimeError("Failed to create asyncpg pool after retries")
 
     while True:
         try:

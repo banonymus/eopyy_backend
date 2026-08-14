@@ -121,6 +121,7 @@ async def process_admission_row(pool, row):
         raw_response = submit_hl7(hl7)
         msa_code, message_id, err = parse_hl7_response(raw_response)
 
+        await save_worker_results(ticket, hl7, raw_response, msa_code)
         if msa_code == "AA":
             async with pool.acquire() as conn:
                 await neon_retry(conn, conn.execute,
@@ -426,3 +427,17 @@ async def worker_loop():
         except Exception:
             logger.exception("Worker crashed")
             await asyncio.sleep(5)
+
+
+async def save_worker_results(ticket_number, hl7, raw_response, status):
+    session = get_new_session()
+    result = await session.execute(
+        select(HL7Job).where(HL7Job.ticket_number == ticket_number)
+    )
+    adm = result.scalar_one_or_none()
+
+    if adm:
+        adm.hl7 = hl7
+        adm.raw_response = raw_response
+        adm.status = status
+        await session.commit()

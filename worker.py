@@ -410,7 +410,7 @@ async def worker_loop():
                     """
                     SELECT *
                     FROM admissions
-                    WHERE status = 'queued' OR status IS NULL
+                    WHERE status = 'queued' OR status IS NULL OR status = ''
                      ORDER BY created_at ASC
                     LIMIT 1
                     """,

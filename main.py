@@ -202,7 +202,6 @@ async def create_or_upsert_admission(
     except IntegrityError:
         await db.rollback()
 
-        # Fetch existing record
         result = await db.execute(
             select(Admission).where(Admission.ticket_number == data.ticket_number)
         )
@@ -239,6 +238,7 @@ async def create_or_upsert_admission(
             "record": jsonable_encoder(adm)
         }
     )
+
 
 
 @app.get("/admissions/{ticket_number}", response_model=AdmissionRead)

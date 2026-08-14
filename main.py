@@ -153,34 +153,91 @@ if os.getenv("ENABLE_ROUTE_DUMP") == "1":
 @app.post("/admissions", response_model=AdmissionRead)
 async def create_or_upsert_admission(data: AdmissionCreate, db: AsyncSession = Depends(get_session)):
     if not data.ticket_number:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="ticket_number is required")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="ticket_number is required"
+        )
 
-    result = await db.execute(select(Admission).where(Admission.ticket_number == data.ticket_number))
+    # Check if admission exists
+    result = await db.execute(
+        select(Admission).where(Admission.ticket_number == data.ticket_number)
+    )
     existing = result.scalar_one_or_none()
 
+    # -----------------------------
+    # UPDATE EXISTING ADMISSION
+    # -----------------------------
     if existing:
         update_data = data.dict(exclude_unset=True)
         for field, value in update_data.items():
             setattr(existing, field, value)
+
         db.add(existing)
         await db.commit()
         await db.refresh(existing)
-        return existing
 
+        # Return full info including HL7 + raw_response
+        return JSONResponse(
+            status_code=200,
+            content={
+                "message": "Admission updated",
+                "ticket_number": existing.ticket_number,
+                "status": existing.status,
+                "hl7": existing.hl7,
+                "raw_response": existing.raw_response,
+                "errors": existing.errors,
+                "record": jsonable_encoder(existing)
+            }
+        )
+
+    # -----------------------------
+    # CREATE NEW ADMISSION
+    # -----------------------------
     adm = Admission(**data.dict())
     db.add(adm)
+
     try:
         await db.commit()
     except IntegrityError:
         await db.rollback()
-        result = await db.execute(select(Admission).where(Admission.ticket_number == data.ticket_number))
+        # Fetch existing record
+        result = await db.execute(
+            select(Admission).where(Admission.ticket_number == data.ticket_number)
+        )
         existing = result.scalar_one_or_none()
         if existing:
-            return existing
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "message": "Admission already existed",
+                    "ticket_number": existing.ticket_number,
+                    "status": existing.status,
+                    "hl7": existing.hl7,
+                    "raw_response": existing.raw_response,
+                    "errors": existing.errors,
+                    "record": jsonable_encoder(existing)
+                }
+            )
         raise HTTPException(status_code=500, detail="Could not create admission")
 
     await db.refresh(adm)
-    return JSONResponse(status_code=201, content=jsonable_encoder(adm))
+
+    # -----------------------------
+    # RETURN FULL RESPONSE TO POSTMAN
+    # -----------------------------
+    return JSONResponse(
+        status_code=201,
+        content={
+            "message": "Admission created",
+            "ticket_number": adm.ticket_number,
+            "status": adm.status,
+            "hl7": adm.hl7,
+            "raw_response": adm.raw_response,
+            "errors": adm.errors,
+            "record": jsonable_encoder(adm)
+        }
+    )
+
 
 
 @app.get("/admissions/{ticket_number}", response_model=AdmissionRead)

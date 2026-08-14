@@ -431,8 +431,10 @@ async def worker_loop():
 
 async def save_worker_results(ticket_number, hl7, raw_response, status):
     session = get_new_session()
+    from models import Admission  # ensure correct model
+
     result = await session.execute(
-        select(HL7Job).where(HL7Job.ticket_number == ticket_number)
+        select(Admission).where(Admission.ticket_number == ticket_number)
     )
     adm = result.scalar_one_or_none()
 

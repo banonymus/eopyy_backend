@@ -414,6 +414,15 @@ async def worker_loop():
             # -----------------------------------------
             # PROCESS SINGLE ADMISSION JOBS FIRST
             # -----------------------------------------
+            logger.error(f"WORKER_DATABASE_URL = {raw_url!r}")
+
+            async with pool.acquire() as conn:
+                schema = await conn.fetchval("SELECT current_schema;")
+                logger.error(f"WORKER SCHEMA = {schema}")
+
+                count = await conn.fetchval("SELECT COUNT(*) FROM admissions;")
+                logger.error(f"WORKER sees {count} admissions")
+
             async with pool.acquire() as conn:
                 row = await neon_retry(
                     conn,

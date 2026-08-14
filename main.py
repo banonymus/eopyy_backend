@@ -187,7 +187,6 @@ async def create_or_upsert_admission(
                 "status": existing.status,
                 "hl7": existing.hl7,
                 "raw_response": existing.raw_response,
-                "errors": existing.errors,
                 "record": jsonable_encoder(existing)
             }
         )
@@ -218,7 +217,6 @@ async def create_or_upsert_admission(
                     "status": existing.status,
                     "hl7": existing.hl7,
                     "raw_response": existing.raw_response,
-                    "errors": existing.errors,
                     "record": jsonable_encoder(existing)
                 }
             )
@@ -238,7 +236,6 @@ async def create_or_upsert_admission(
             "status": adm.status,
             "hl7": adm.hl7,
             "raw_response": adm.raw_response,
-            "errors": adm.errors,
             "record": jsonable_encoder(adm)
         }
     )

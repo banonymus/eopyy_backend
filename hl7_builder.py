@@ -195,20 +195,24 @@ import datetime
 # ---------------------------------------------------------
 
 
-def build_MSH_A03(ticket_number, profile_id, installation_code):
-    now = datetime.datetime.now().strftime("%Y%m%d%H%M")
+from datetime import datetime
 
+def build_MSH_A03(ticket_number, profile_id, installation_code):
+    now = datetime.now().strftime("%Y%m%d%H%M")
     return (
         f"MSH|^~\\&|||||{now}||ADT^A03^ADT_A03|{ticket_number}|P|2.6|||||||||"
         f"{profile_id}|^^^^^^^^^{installation_code}"
     )
 
+
 # ---------------------------------------------------------
 # EVN A03
 # ---------------------------------------------------------
 def build_EVN_A03(operator_id):
-    now = datetime.datetime.now().strftime("%Y%m%d%H%M")
+    now = datetime.now().strftime("%Y%m%d%H%M")
+    operator_id = operator_id or ""   # prevent None
     return f"EVN|A03|{now}|||{operator_id}"
+
 
 
 
@@ -220,29 +224,32 @@ def build_PID_A03():
 
 
 
+
 # ---------------------------------------------------------
 # PV1 A03 (minimal σύμφωνα με προδιαγραφές)
 # ---------------------------------------------------------
 def build_PV1_A03(location_code, visit_number, admit_datetime, discharge_datetime, patient_type="0", alt_visit_id=None):
-    pv1 = [""] * 60  # safe length
+    pv1 = [""] * 53   # EXACTLY 53 fields → PV1.52 is index 52
 
     pv1[0] = "PV1"
-    pv1[1] = ""          # Set ID
-    pv1[2] = "I"         # Patient Class
-    pv1[3] = location_code  # MUST be numeric (e.g. 666)
+    pv1[1] = ""                # Set ID
+    pv1[2] = "I"               # Patient Class
 
-    pv1[15] = patient_type  # PV1.16 patient type (EOPYY uses "0")
+    # MUST BE NUMERIC (EOPYY requirement)
+    pv1[3] = location_code
 
-    pv1[19] = visit_number  # PV1.19 Visit Number (NOT ticket_number)
+    pv1[15] = patient_type     # PV1.16 patient type
 
-    pv1[44] = discharge_datetime  # PV1.44 Discharge datetime
-    pv1[52] = alt_visit_id or visit_number  # PV1.52 Visit Number again
+    # Visit number from admission (NOT ticket_number)
+    pv1[19] = visit_number
+
+    # Discharge datetime
+    pv1[44] = discharge_datetime
+
+    # PV1.52 = visit_number again
+    pv1[52] = alt_visit_id or visit_number
 
     return "|".join(pv1)
-
-
-
-
 
 
 
@@ -253,16 +260,19 @@ def build_PV1_A03(location_code, visit_number, admit_datetime, discharge_datetim
 
 def build_full_hl7_message_A03(data):
     return "\r".join([
-        build_MSH_A03(data["ticket_number"], data["profile_id"], data["installation_code"]),
+        build_MSH_A03(
+            data["ticket_number"],
+            data["profile_id"],
+            data["installation_code"]
+        ),
         build_EVN_A03(data["operator_id"]),
         build_PID_A03(),
         build_PV1_A03(
             data["location_code"],
-            data["ticket_number"],
+            data["visit_number"],          # ⭐ CORRECT
             data["admit_datetime"],
             data["discharge_datetime"],
             patient_type=data.get("patient_type", "0"),
-            alt_visit_id=data["ticket_number"]
+            alt_visit_id=data["visit_number"]  # ⭐ CORRECT
         )
     ]) + "\r"
-

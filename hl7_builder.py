@@ -254,6 +254,7 @@ def build_PV1_A03(location_code, visit_number, admit_datetime, discharge_datetim
 
     return "|".join(pv1)
 
+
 # ---------------------------------------------------------
 # FULL HL7 MESSAGE A03
 # ---------------------------------------------------------

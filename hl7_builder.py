@@ -196,7 +196,8 @@ import datetime
 
 
 def build_MSH_A03(ticket_number, profile_id, installation_code):
-    now = datetime.now().strftime("%Y%m%d%H%M")
+    now = datetime.datetime.now().strftime("%Y%m%d%H%M")
+
     return (
         f"MSH|^~\\&|||||{now}||ADT^A03^ADT_A03|{ticket_number}|P|2.6|||||||||"
         f"{profile_id}|^^^^^^^^^{installation_code}"
@@ -206,7 +207,7 @@ def build_MSH_A03(ticket_number, profile_id, installation_code):
 # EVN A03
 # ---------------------------------------------------------
 def build_EVN_A03(operator_id):
-    now = datetime.now().strftime("%Y%m%d%H%M")
+    now = datetime.datetime.now().strftime("%Y%m%d%H%M")
     return f"EVN|A03|{now}|||{operator_id}"
 
 

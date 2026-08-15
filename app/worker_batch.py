@@ -6,6 +6,7 @@ import asyncpg
 import datetime
 from app.hl7_generator import generate_hl7_file
 from hl7_builder_worker import build_hl7_discharge
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("hl7-worker")
 

@@ -15,6 +15,106 @@ if not raw_url:
 
 ssl_ctx = ssl.create_default_context()
 
+import re
+import httpx
+from email_alerts import send_error_email
+from hl7_builder_worker import build_hl7_message
+from old_eopyy_client import submit_hl7
+
+# ---------------------------------------------------------
+# HL7 PARSER
+# ---------------------------------------------------------
+def parse_hl7_response(raw):
+    msa_match = re.search(r"MSA\|([A-Z]{2})\|([0-9]+)", raw)
+    msa_code = msa_match.group(1) if msa_match else None
+    message_id = msa_match.group(2) if msa_match else None
+
+    err_match = re.search(r"ERR\|\|([A-Z0-9\^]+)\|([0-9]+)\|([A-Z])\|([0-9]+)", raw)
+    err = {
+        "location": err_match.group(1) if err_match else None,
+        "code": err_match.group(2) if err_match else None,
+        "severity": err_match.group(3) if err_match else None,
+        "eopyy_code": err_match.group(4) if err_match else None,
+    }
+
+    return msa_code, message_id, err
+
+# ---------------------------------------------------------
+# WEBHOOK
+# ---------------------------------------------------------
+async def send_webhook(event_type: str, payload: dict):
+    WEBHOOK_URL = os.getenv("WEBHOOK_URL")
+    if not WEBHOOK_URL:
+        return
+
+    async with httpx.AsyncClient(timeout=10) as client:
+        try:
+            await client.post(WEBHOOK_URL, json={"event": event_type, "data": payload})
+        except Exception as e:
+            logger.error(f"Webhook failed: {e}")
+
+# ---------------------------------------------------------
+# PROCESS ADMISSION (NO DB)
+# ---------------------------------------------------------
+async def process_admission_row(pool, row):
+    ticket = row["ticket_number"]
+    logger.info(f"[{ticket}] Processing ADMISSION (no DB mode)")
+
+    try:
+        data = dict(row)
+
+        # 1. Build HL7
+        hl7 = build_hl7_message(data)
+
+        # 2. Send SOAP
+        raw_response = submit_hl7(hl7)
+
+        # 3. Parse ACK
+        msa_code, message_id, err = parse_hl7_response(raw_response)
+
+        logger.info(f"[{ticket}] HL7 MSA={msa_code}, message_id={message_id}, ERR={err}")
+
+        # Optional webhook notifications
+        if msa_code == "AA":
+            await send_webhook("admission_completed", {
+                "ticket_number": ticket,
+                "message_id": message_id
+            })
+
+        elif msa_code == "AR":
+            await send_webhook("admission_rejected", {
+                "ticket_number": ticket,
+                "error": err
+            })
+            send_error_email(ticket, f"EOPYY rejected admission:\n\n{raw_response}")
+
+        else:
+            await send_webhook("worker_error", {
+                "ticket_number": ticket,
+                "error": err
+            })
+            send_error_email(ticket, f"EOPYY returned error:\n\n{raw_response}")
+
+        # ⭐ Return result directly (NO DB)
+        return {
+            "ticket_number": ticket,
+            "status": msa_code,
+            "hl7": hl7,
+            "raw_response": raw_response,
+            "error": err,
+        }
+
+    except Exception as e:
+        logger.exception(f"[{ticket}] Admission processing error")
+        return {
+            "ticket_number": ticket,
+            "status": "error",
+            "hl7": None,
+            "raw_response": None,
+            "error": str(e),
+        }
+
+
 # ---------------------------------------------------------
 # WORKER LOOP (pure asyncpg)
 # ---------------------------------------------------------

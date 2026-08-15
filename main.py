@@ -146,7 +146,9 @@ if os.getenv("ENABLE_ROUTE_DUMP") == "1":
 # ---------------------------------------------------------
 # Admissions
 # ---------------------------------------------------------
-@app.post("/admissions", response_model=AdmissionRead)
+from app.worker_batch import process_admission_row
+
+@app.post("/admissions")
 async def create_or_upsert_admission(
     data: AdmissionCreate,
     db: AsyncSession = Depends(get_session)
@@ -157,15 +159,14 @@ async def create_or_upsert_admission(
             detail="ticket_number is required"
         )
 
-    # Check if admission exists
+    # ----------------------------------------------------
+    # 1) SAVE admission to database (as you want)
+    # ----------------------------------------------------
     result = await db.execute(
         select(Admission).where(Admission.ticket_number == data.ticket_number)
     )
     existing = result.scalar_one_or_none()
 
-    # ----------------------------------------------------
-    # UPDATE EXISTING ADMISSION
-    # ----------------------------------------------------
     if existing:
         update_data = data.dict(exclude_unset=True)
         for field, value in update_data.items():
@@ -175,65 +176,38 @@ async def create_or_upsert_admission(
         await db.commit()
         await db.refresh(existing)
 
-        return JSONResponse(
-            status_code=200,
-            content={
-                "message": "Admission updated",
-                "ticket_number": existing.ticket_number,
-                "status": existing.status,
-                "hl7": existing.hl7,
-                "raw_response": existing.raw_response,
-                "record": jsonable_encoder(existing)
-            }
-        )
+        saved_record = existing
 
-    # ----------------------------------------------------
-    # CREATE NEW ADMISSION
-    # ----------------------------------------------------
-    adm = Admission(**data.dict())
-    db.add(adm)
-
-    try:
+    else:
+        adm = Admission(**data.dict())
+        db.add(adm)
         await db.commit()
-    except IntegrityError:
-        await db.rollback()
+        await db.refresh(adm)
 
-        result = await db.execute(
-            select(Admission).where(Admission.ticket_number == data.ticket_number)
-        )
-        existing = result.scalar_one_or_none()
-
-        if existing:
-            return JSONResponse(
-                status_code=200,
-                content={
-                    "message": "Admission already existed",
-                    "ticket_number": existing.ticket_number,
-                    "status": existing.status,
-                    "hl7": existing.hl7,
-                    "raw_response": existing.raw_response,
-                    "record": jsonable_encoder(existing)
-                }
-            )
-
-        raise HTTPException(status_code=500, detail="Could not create admission")
-
-    await db.refresh(adm)
+        saved_record = adm
 
     # ----------------------------------------------------
-    # RETURN FULL RESPONSE TO POSTMAN
+    # 2) CALL HL7 + SOAP (NO DB UPDATE)
     # ----------------------------------------------------
-    return JSONResponse(
-        status_code=201,
-        content={
-            "message": "Admission created",
-            "ticket_number": adm.ticket_number,
-            "status": adm.status,
-            "hl7": adm.hl7,
-            "raw_response": adm.raw_response,
-            "record": jsonable_encoder(adm)
-        }
-    )
+    fake_row = data.dict()
+    hl7_result = await process_admission_row(None, fake_row)
+
+    # ----------------------------------------------------
+    # 3) RETURN BOTH:
+    #    - saved DB record
+    #    - HL7 + SOAP result
+    # ----------------------------------------------------
+    return {
+        "message": "Admission saved to database",
+        "ticket_number": saved_record.ticket_number,
+        "record": jsonable_encoder(saved_record),
+
+        # HL7 result (NOT saved to DB)
+        "hl7_status": hl7_result["status"],
+        "hl7_message": hl7_result["hl7"],
+        "hl7_raw_response": hl7_result["raw_response"],
+        "hl7_error": hl7_result["error"]
+    }
 
 
 

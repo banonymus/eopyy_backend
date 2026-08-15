@@ -61,22 +61,21 @@ def build_hl7_admission(data: dict) -> str:
     ]) + "\r"
 
 def build_hl7_discharge(data: dict) -> str:
-    """Build HL7 ADT^A03 from raw Neon dict."""
     return "\r".join([
         build_MSH_A03(
-            normalize(data, "ticket_number"),
-            normalize(data, "profile_id"),
-            normalize(data, "installation_code"),
+            data["ticket_number"],
+            data["profile_id"],
+            data["installation_code"],
         ),
-        build_EVN_A03(normalize(data, "operator_id")),
+        build_EVN_A03(data["operator_id"]),
         build_PID_A03(),
         build_PV1_A03(
-            normalize(data, "location_code"),
-            normalize(data, "ticket_number"),
-            normalize(data, "admit_datetime"),
-            normalize(data, "discharge_datetime"),
+            data["location_code"],
+            data["visit_number"],          # MUST be visit_number
+            data["admit_datetime"],
+            data["discharge_datetime"],
             patient_type="0",
-            alt_visit_id=normalize(data, "ticket_number"),
+            alt_visit_id=data["ticket_number"],
         ),
     ]) + "\r"
 

@@ -191,128 +191,53 @@ def build_full_hl7_message(data):
 import datetime
 
 # ---------------------------------------------------------
-# MSH A03
+# MSH A03 disharhes
 # ---------------------------------------------------------
 
 
-def build_MSH_A03(ticket_number: str, profile_id: str, installation_code: str) -> str:
-    now = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-
-    msh = [
-        "MSH",                  # 1
-        "^~\\&",                # 2
-        "",                     # 3
-        "",                     # 4
-        "",                     # 5
-        "",                     # 6
-        now[:12],               # 7
-        "",                     # 8
-        "ADT^A03^ADT_A03",      # 9
-        ticket_number,          # 10
-        "P",                    # 11
-        "2.6",                  # 12
-        "", "", "", "", "", "", "", "",  # 13–20
-        profile_id,             # 21
-        "^^^^^^^^^" + installation_code  # 22
-    ]
-    return "|".join(msh)
-
+def build_MSH_A03(ticket_number, profile_id, installation_code):
+    now = datetime.now().strftime("%Y%m%d%H%M")
+    return (
+        f"MSH|^~\\&|||||{now}||ADT^A03^ADT_A03|{ticket_number}|P|2.6|||||||||"
+        f"{profile_id}|^^^^^^^^^{installation_code}"
+    )
 
 # ---------------------------------------------------------
 # EVN A03
 # ---------------------------------------------------------
-def build_EVN_A03(operator_id: str) -> str:
-    now = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-    now=now[:12]
+def build_EVN_A03(operator_id):
+    now = datetime.now().strftime("%Y%m%d%H%M")
     return f"EVN|A03|{now}|||{operator_id}"
+
 
 
 # ---------------------------------------------------------
 # PID A03 (minimal)
 # ---------------------------------------------------------
-def build_PID_A03() -> str:
-    # Σύμφωνα με το “σωστό εξιτήριο” του ΕΟΠΥΥ: PID||
+def build_PID_A03():
     return "PID||"
+
 
 
 # ---------------------------------------------------------
 # PV1 A03 (minimal σύμφωνα με προδιαγραφές)
 # ---------------------------------------------------------
+def build_PV1_A03(location_code, visit_number, admit_datetime, discharge_datetime, patient_type="0", alt_visit_id=None):
+    pv1 = [""] * 60  # safe length
 
+    pv1[0] = "PV1"
+    pv1[1] = ""          # Set ID
+    pv1[2] = "I"         # Patient Class
+    pv1[3] = location_code  # MUST be numeric (e.g. 666)
 
-import re
+    pv1[15] = patient_type  # PV1.16 patient type (EOPYY uses "0")
 
-def _clean_field(value):
-    if value is None:
-        return ""
-    return re.sub(r'[\r\n\x00-\x08\x0B\x0C\x0E-\x1F]', '', str(value))
+    pv1[19] = visit_number  # PV1.19 Visit Number (NOT ticket_number)
 
-def build_PV1_A03(location_code,
-                  ticket_number,
-                  admit_datetime,
-                  discharge_datetime,
-                  patient_type="0",
-                  alt_visit_id=None,
-                  template_pv1="PV1||I|666|||||||||||||||0|2013000012111||||||||||||||||||||||||||201310111111|||||2013000012113"):
-    """
-    Επιστρέφει PV1 string χωρίς trailing CR.
-    Χρησιμοποιεί το template_pv1 για να διατηρήσει ακριβές pipe count και
-    αντικαθιστά υπάρχοντα numeric/timestamp πεδία ώστε να αποφευχθεί διπλοεμφάνιση.
-    """
-    # καθαρισμοί και trim timestamps σε 12 chars
-    location_code = _clean_field(location_code)
-    ticket_number = _clean_field(ticket_number)
-    admit = _clean_field(admit_datetime)[:12]
-    discharge = _clean_field(discharge_datetime)[:12]
-    alt_visit_id = _clean_field(alt_visit_id) if alt_visit_id is not None else ticket_number
-    patient_type = _clean_field(patient_type)
+    pv1[44] = discharge_datetime  # PV1.44 Discharge datetime
+    pv1[52] = alt_visit_id or visit_number  # PV1.52 Visit Number again
 
-    parts = _clean_field(template_pv1).split("|")
-    if not parts or not parts[0].startswith("PV1"):
-        raise ValueError("template_pv1 πρέπει να ξεκινάει με 'PV1'")
-
-    orig_len = len(parts)
-
-    # Εντοπίζουμε numeric/timestamp tokens στο template (8-14 ψηφία)
-    numeric_idxs = [i for i, p in enumerate(parts) if re.fullmatch(r'\d{8,14}', p)]
-
-    # Αν βρούμε τουλάχιστον 3 numeric πεδία κοντά στο τέλος (όπως στο working template),
-    # αντικαθιστούμε τα κατάλληλα ώστε να έχουμε admit/discharge/alt μόνο μια φορά.
-    if len(numeric_idxs) >= 3:
-        # Συνήθως τα τελευταία 3 numeric στο template είναι: visitNumberLike, dischargeLike, altVisitLike
-        # Θα τοποθετήσουμε: parts[n-3] <- (κρατάμε ή αντικαθιστούμε με ticket), parts[n-2] <- admit, parts[n-1] <- discharge/alt
-        last = numeric_idxs[-3:]
-        # βάζουμε ticket στην πρώτη από τις τρεις (αν θέλουμε να αντικαταστήσουμε)
-        parts[last[0]] = ticket_number
-        # admit και discharge στις επόμενες δύο θέσεις
-        parts[last[1]] = admit
-        parts[last[2]] = discharge
-        # Αν υπάρχει επιπλέον numeric μετά από αυτά (π.χ. alt visit), τοποθετούμε alt_visit_id εκεί
-        if len(numeric_idxs) >= 4:
-            parts[numeric_idxs[-1]] = alt_visit_id
-        else:
-            # αλλιώς, προσπαθούμε να τοποθετήσουμε alt_visit_id στην τελευταία θέση του template
-            parts[-1] = alt_visit_id if re.fullmatch(r'\d{1,250}', parts[-1]) or parts[-1] == "" else parts[-1]
-    else:
-        # fallback: επεκτείνουμε προσωρινά ώστε να τοποθετήσουμε σε HL7 indices (ασφαλές)
-        if len(parts) < 51:
-            parts += [""] * (51 - len(parts))
-        parts[2]  = "I"
-        parts[3]  = location_code
-        parts[18] = patient_type
-        parts[19] = ticket_number
-        parts[44] = admit
-        parts[45] = discharge
-        parts[50] = alt_visit_id
-
-    # Βεβαιώνουμε ότι οι βασικές θέσεις υπάρχουν/αντικαταστάθηκαν
-    if len(parts) > 3:
-        parts[3] = location_code
-    if len(parts) > 19:
-        parts[19] = ticket_number
-
-    # Επιστρέφουμε μόνο τα πρώτα orig_len μέρη για να διατηρήσουμε ακριβώς το pipe count του template
-    return "|".join(parts[:orig_len])
+    return "|".join(pv1)
 
 
 

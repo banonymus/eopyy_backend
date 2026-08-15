@@ -114,139 +114,73 @@ async def save_worker_results(ticket_number, hl7, raw_response, status):
 # ---------------------------------------------------------
 # PROCESS ADMISSION
 # ---------------------------------------------------------
+# ---------------------------------------------------------
+# PROCESS ADMISSION (NO DATABASE VERSION)
+# ---------------------------------------------------------
 async def process_admission_row(pool, row):
     row_id = row["id"]
     ticket = row["ticket_number"]
 
     logger.info(f"[{ticket}] Processing ADMISSION (id={row_id})")
 
-    async with pool.acquire() as conn:
-        await neon_retry(
-            conn,
-            conn.execute,
-            "UPDATE admissions SET status='processing', updated_at=NOW() WHERE id=$1",
-            row_id,
-        )
-
     try:
+        # Convert row to dict
         data = dict(row)
+
+        # 1. Build HL7
         hl7 = build_hl7_message(data)
 
-        async with pool.acquire() as conn:
-            await neon_retry(
-                conn,
-                conn.execute,
-                "UPDATE admissions SET hl7=$2, updated_at=NOW() WHERE id=$1",
-                row_id,
-                hl7,
-            )
-
+        # 2. Send HL7 to EOPYY SOAP
         raw_response = submit_hl7(hl7)
+
+        # 3. Parse HL7 ACK
         msa_code, message_id, err = parse_hl7_response(raw_response)
 
-        # SQLAlchemy update so FastAPI sees correct values
-        await save_worker_results(ticket, hl7, raw_response, msa_code)
+        # 4. Log result (instead of saving to DB)
+        logger.info(f"[{ticket}] HL7 MSA={msa_code}, message_id={message_id}, ERR={err}")
 
+        # 5. Send webhook (optional)
         if msa_code == "AA":
-            async with pool.acquire() as conn:
-                await neon_retry(
-                    conn,
-                    conn.execute,
-                    """
-                    UPDATE admissions
-                    SET status='completed',
-                        raw_response=$2,
-                        updated_at=NOW()
-                    WHERE id=$1
-                    """,
-                    row_id,
-                    raw_response,
-                )
-
             await send_webhook(
                 "admission_completed",
                 {"ticket_number": ticket, "message_id": message_id},
             )
 
         elif msa_code == "AR":
-            async with pool.acquire() as conn:
-                await neon_retry(
-                    conn,
-                    conn.execute,
-                    """
-                    UPDATE admissions
-                    SET status='rejected',
-                        error_code=$3,
-                        error_details=$4,
-                        raw_response=$2,
-                        updated_at=NOW()
-                    WHERE id=$1
-                    """,
-                    row_id,
-                    raw_response,
-                    err["eopyy_code"],
-                    json.dumps(err),
-                )
-
             await send_webhook(
                 "admission_rejected",
                 {"ticket_number": ticket, "error": err},
             )
-
             send_error_email(ticket, f"EOPYY rejected admission:\n\n{raw_response}")
 
         else:
-            async with pool.acquire() as conn:
-                await neon_retry(
-                    conn,
-                    conn.execute,
-                    """
-                    UPDATE admissions
-                    SET status='error',
-                        error_code=$3,
-                        error_details=$4,
-                        raw_response=$2,
-                        updated_at=NOW()
-                    WHERE id=$1
-                    """,
-                    row_id,
-                    raw_response,
-                    err["eopyy_code"],
-                    json.dumps(err),
-                )
-
             await send_webhook(
                 "worker_error",
                 {"ticket_number": ticket, "error": err},
             )
-
             send_error_email(ticket, f"EOPYY returned error:\n\n{raw_response}")
+
+        # 6. Return result directly (NO DB)
+        return {
+            "ticket_number": ticket,
+            "status": msa_code,
+            "hl7": hl7,
+            "raw_response": raw_response,
+            "error": err,
+        }
 
     except Exception as e:
         error_msg = str(e)
         logger.exception(f"[{ticket}] Admission processing error")
 
-        async with pool.acquire() as conn:
-            await neon_retry(
-                conn,
-                conn.execute,
-                """
-                UPDATE admissions
-                SET status='error',
-                    raw_response=$2,
-                    updated_at=NOW()
-                WHERE id=$1
-                """,
-                row_id,
-                json.dumps({"error": error_msg}),
-            )
-
-        await send_webhook(
-            "worker_error",
-            {"ticket_number": ticket, "exception": error_msg},
-        )
-
-        send_error_email(ticket, error_msg)
+        # Return error directly (NO DB)
+        return {
+            "ticket_number": ticket,
+            "status": "error",
+            "hl7": None,
+            "raw_response": None,
+            "error": error_msg,
+        }
 
 # ---------------------------------------------------------
 # PROCESS DISCHARGE

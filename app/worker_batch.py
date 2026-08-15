@@ -5,7 +5,7 @@ import logging
 import asyncpg
 import datetime
 from app.hl7_generator import generate_hl7_file
-
+from hl7_builder_worker import build_hl7_discharge
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("hl7-worker")
 
@@ -114,6 +114,127 @@ async def process_admission_row(pool, row):
             "error": str(e),
         }
 
+# ---------------------------------------------------------
+# PROCESS DISCHARGE (NO DB MODE)
+# ---------------------------------------------------------
+async def process_discharge_row(pool, row):
+    ticket = row["ticket_number"]
+    logger.info(f"[{ticket}] Processing DISCHARGE (no DB mode)")
+
+    try:
+        data = dict(row)
+
+        # 1. Build HL7 A03
+        hl7 = build_hl7_message(data)
+
+        # 2. Send SOAP
+        raw_response = submit_hl7(hl7)
+
+        # 3. Parse ACK
+        msa_code, message_id, err = parse_hl7_response(raw_response)
+
+        logger.info(f"[{ticket}] HL7 MSA={msa_code}, message_id={message_id}, ERR={err}")
+
+        # Optional webhook notifications
+        if msa_code == "AA":
+            await send_webhook("discharge_completed", {
+                "ticket_number": ticket,
+                "message_id": message_id
+            })
+
+        elif msa_code == "AR":
+            await send_webhook("discharge_rejected", {
+                "ticket_number": ticket,
+                "error": err
+            })
+            send_error_email(ticket, f"EOPYY rejected discharge:\n\n{raw_response}")
+
+        else:
+            await send_webhook("worker_error", {
+                "ticket_number": ticket,
+                "error": err
+            })
+            send_error_email(ticket, f"EOPYY returned discharge error:\n\n{raw_response}")
+
+        # ⭐ Return result directly (NO DB writes)
+        return {
+            "ticket_number": ticket,
+            "status": msa_code,
+            "hl7": hl7,
+            "raw_response": raw_response,
+            "error": err,
+        }
+
+    except Exception as e:
+        logger.exception(f"[{ticket}] Discharge processing error")
+        return {
+            "ticket_number": ticket,
+            "status": "error",
+            "hl7": None,
+            "raw_response": None,
+            "error": str(e),
+        }
+
+# ---------------------------------------------------------
+# PROCESS DISCHARGE (NO DB MODE)
+# ---------------------------------------------------------
+async def process_discharge_row(pool, row):
+    ticket = row["ticket_number"]
+    logger.info(f"[{ticket}] Processing DISCHARGE (no DB mode)")
+
+    try:
+        data = dict(row)
+
+        # 1. Build HL7 A03
+        hl7 = build_hl7_discharge(data)
+
+        # 2. Send SOAP (same endpoint as A01)
+        raw_response = submit_hl7(hl7)
+
+        # 3. Parse ACK
+        msa_code, message_id, err = parse_hl7_response(raw_response)
+
+        logger.info(f"[{ticket}] HL7 MSA={msa_code}, message_id={message_id}, ERR={err}")
+
+        # Optional webhook notifications
+        if msa_code == "AA":
+            await send_webhook("discharge_completed", {
+                "ticket_number": ticket,
+                "message_id": message_id
+            })
+
+        elif msa_code == "AR":
+            await send_webhook("discharge_rejected", {
+                "ticket_number": ticket,
+                "error": err
+            })
+            send_error_email(ticket, f"EOPYY rejected discharge:\n\n{raw_response}")
+
+        else:
+            await send_webhook("worker_error", {
+                "ticket_number": ticket,
+                "error": err
+            })
+            send_error_email(ticket, f"EOPYY returned discharge error:\n\n{raw_response}")
+
+        # ⭐ Return result directly (NO DB writes)
+        return {
+            "ticket_number": ticket,
+            "status": msa_code,
+            "hl7": hl7,
+            "raw_response": raw_response,
+            "error": err,
+        }
+
+    except Exception as e:
+        logger.exception(f"[{ticket}] Discharge processing error")
+        return {
+            "ticket_number": ticket,
+            "status": "error",
+            "hl7": None,
+            "raw_response": None,
+            "error": str(e),
+        }
 
 # ---------------------------------------------------------
 # WORKER LOOP (pure asyncpg)

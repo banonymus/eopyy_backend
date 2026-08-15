@@ -260,13 +260,57 @@ async def debug_headers(request: Request):
 # -------------------------
 # Discharges endpoints
 # -------------------------
-@app.post("/discharges", response_model=DischargeRead)
-async def create_discharge(data: DischargeCreate, db: AsyncSession = Depends(get_session)):
-    dis = Discharge(**data.dict())
-    db.add(dis)
-    await db.commit()
-    await db.refresh(dis)
-    return dis
+from app.worker_batch import process_discharge_row
+
+@app.post("/discharges")
+async def create_or_process_discharge(
+    data: DischargeCreate,
+    db: AsyncSession = Depends(get_session)
+):
+    if not data.ticket_number:
+        raise HTTPException(
+            status_code=422,
+            detail="ticket_number is required"
+        )
+
+    # 1. Save discharge to DB (same as admissions)
+    result = await db.execute(
+        select(Discharge).where(Discharge.ticket_number == data.ticket_number)
+    )
+    existing = result.scalar_one_or_none()
+
+    if existing:
+        update_data = data.dict(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(existing, field, value)
+
+        db.add(existing)
+        await db.commit()
+        await db.refresh(existing)
+        saved_record = existing
+
+    else:
+        dis = Discharge(**data.dict())
+        db.add(dis)
+        await db.commit()
+        await db.refresh(dis)
+        saved_record = dis
+
+    # 2. Process HL7 A03 (NO DB writes)
+    fake_row = data.dict()
+    hl7_result = await process_discharge_row(None, fake_row)
+
+    # 3. Return both DB record + HL7 result
+    return {
+        "message": "Discharge saved to database",
+        "ticket_number": saved_record.ticket_number,
+        "record": jsonable_encoder(saved_record),
+
+        "hl7_status": hl7_result["status"],
+        "hl7_message": hl7_result["hl7"],
+        "hl7_raw_response": hl7_result["raw_response"],
+        "hl7_error": hl7_result["error"]
+    }
 
 
 @app.get("/discharges", response_model=List[DischargeRead])

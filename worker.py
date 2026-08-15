@@ -223,140 +223,62 @@ async def process_admission_row(pool, row):
 # PROCESS DISCHARGE
 # ---------------------------------------------------------
 async def process_discharge_row(pool, row):
-    row_id = row["id"]
     ticket = row["ticket_number"]
-
-    logger.info(f"[{ticket}] Processing DISCHARGE (id={row_id})")
-
-    async with pool.acquire() as conn:
-        await neon_retry(
-            conn,
-            conn.execute,
-            "UPDATE discharges SET status='processing', updated_at=NOW() WHERE id=$1",
-            row_id,
-        )
+    logger.info(f"[{ticket}] Processing DISCHARGE (no DB mode)")
 
     try:
         data = dict(row)
+
+        # 1. Build HL7 A03
         hl7 = build_hl7_message(data)
 
-        async with pool.acquire() as conn:
-            await neon_retry(
-                conn,
-                conn.execute,
-                """
-                UPDATE discharges
-                SET hl7_a03=$2,
-                    updated_at=NOW()
-                WHERE id=$1
-                """,
-                row_id,
-                hl7,
-            )
-
+        # 2. Send SOAP
         raw_response = submit_discarge_hl7(hl7)
+
+        # 3. Parse ACK
         msa_code, message_id, err = parse_hl7_response(raw_response)
 
-        if msa_code == "AA":
-            async with pool.acquire() as conn:
-                await neon_retry(
-                    conn,
-                    conn.execute,
-                    """
-                    UPDATE discharges
-                    SET status='completed',
-                        raw_response_a03=$2,
-                        updated_at=NOW()
-                    WHERE id=$1
-                    """,
-                    row_id,
-                    raw_response,
-                )
+        logger.info(f"[{ticket}] HL7 MSA={msa_code}, message_id={message_id}, ERR={err}")
 
-            await send_webhook(
-                "discharge_completed",
-                {"ticket_number": ticket, "message_id": message_id},
-            )
+        # Optional webhook notifications
+        if msa_code == "AA":
+            await send_webhook("discharge_completed", {
+                "ticket_number": ticket,
+                "message_id": message_id
+            })
 
         elif msa_code == "AR":
-            async with pool.acquire() as conn:
-                await neon_retry(
-                    conn,
-                    conn.execute,
-                    """
-                    UPDATE discharges
-                    SET status='rejected',
-                        error_code=$3,
-                        error_details=$4,
-                        raw_response_a03=$2,
-                        updated_at=NOW()
-                    WHERE id=$1
-                    """,
-                    row_id,
-                    raw_response,
-                    err["eopyy_code"],
-                    json.dumps(err),
-                )
-
-            await send_webhook(
-                "discharge_rejected",
-                {"ticket_number": ticket, "error": err},
-            )
-
+            await send_webhook("discharge_rejected", {
+                "ticket_number": ticket,
+                "error": err
+            })
             send_error_email(ticket, f"EOPYY rejected discharge:\n\n{raw_response}")
 
         else:
-            async with pool.acquire() as conn:
-                await neon_retry(
-                    conn,
-                    conn.execute,
-                    """
-                    UPDATE discharges
-                    SET status='error',
-                        error_code=$3,
-                        error_details=$4,
-                        raw_response_a03=$2,
-                        updated_at=NOW()
-                    WHERE id=$1
-                    """,
-                    row_id,
-                    raw_response,
-                    err["eopyy_code"],
-                    json.dumps(err),
-                )
-
-            await send_webhook(
-                "worker_error",
-                {"ticket_number": ticket, "error": err},
-            )
-
+            await send_webhook("worker_error", {
+                "ticket_number": ticket,
+                "error": err
+            })
             send_error_email(ticket, f"EOPYY returned discharge error:\n\n{raw_response}")
 
+        # ⭐ Return result directly (NO DB writes)
+        return {
+            "ticket_number": ticket,
+            "status": msa_code,
+            "hl7": hl7,
+            "raw_response": raw_response,
+            "error": err,
+        }
+
     except Exception as e:
-        error_msg = str(e)
         logger.exception(f"[{ticket}] Discharge processing error")
-
-        async with pool.acquire() as conn:
-            await neon_retry(
-                conn,
-                conn.execute,
-                """
-                UPDATE discharges
-                SET status='error',
-                    raw_response_a03=$2,
-                    updated_at=NOW()
-                WHERE id=$1
-                """,
-                row_id,
-                json.dumps({"error": error_msg}),
-            )
-
-        await send_webhook(
-            "worker_error",
-            {"ticket_number": ticket, "exception": error_msg},
-        )
-
-        send_error_email(ticket, error_msg)
+        return {
+            "ticket_number": ticket,
+            "status": "error",
+            "hl7": None,
+            "raw_response": None,
+            "error": str(e),
+        }
 
 # ---------------------------------------------------------
 # MAIN WORKER LOOP

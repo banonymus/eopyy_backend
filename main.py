@@ -290,6 +290,8 @@ async def create_or_process_discharge(
         "profile_id": admission.profile_id,
         "installation_code": admission.installation_code,
         "location_code": admission.location_code,
+        "operator_id": admission.operator_id,
+        "visit_number": admission.visit_number,
         "admit_datetime": admission.admit_datetime,
         "doctor_amka": admission.doctor_amka,
         "amka": admission.amka,
@@ -300,7 +302,6 @@ async def create_or_process_discharge(
         "icd10_code": admission.icd10_code,
         "icd10_desc": admission.icd10_desc,
         "icd10_date": admission.icd10_date,
-        "visit_number": admission.visit_number,
     }
 
     # Combine user input + auto-fill

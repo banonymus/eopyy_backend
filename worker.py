@@ -118,49 +118,45 @@ async def save_worker_results(ticket_number, hl7, raw_response, status):
 # PROCESS ADMISSION (NO DATABASE VERSION)
 # ---------------------------------------------------------
 async def process_admission_row(pool, row):
-    row_id = row["id"]
     ticket = row["ticket_number"]
-
-    logger.info(f"[{ticket}] Processing ADMISSION (id={row_id})")
+    logger.info(f"[{ticket}] Processing ADMISSION (no DB mode)")
 
     try:
-        # Convert row to dict
         data = dict(row)
 
         # 1. Build HL7
         hl7 = build_hl7_message(data)
 
-        # 2. Send HL7 to EOPYY SOAP
+        # 2. Send SOAP
         raw_response = submit_hl7(hl7)
 
-        # 3. Parse HL7 ACK
+        # 3. Parse ACK
         msa_code, message_id, err = parse_hl7_response(raw_response)
 
-        # 4. Log result (instead of saving to DB)
         logger.info(f"[{ticket}] HL7 MSA={msa_code}, message_id={message_id}, ERR={err}")
 
-        # 5. Send webhook (optional)
+        # Optional webhook notifications
         if msa_code == "AA":
-            await send_webhook(
-                "admission_completed",
-                {"ticket_number": ticket, "message_id": message_id},
-            )
+            await send_webhook("admission_completed", {
+                "ticket_number": ticket,
+                "message_id": message_id
+            })
 
         elif msa_code == "AR":
-            await send_webhook(
-                "admission_rejected",
-                {"ticket_number": ticket, "error": err},
-            )
+            await send_webhook("admission_rejected", {
+                "ticket_number": ticket,
+                "error": err
+            })
             send_error_email(ticket, f"EOPYY rejected admission:\n\n{raw_response}")
 
         else:
-            await send_webhook(
-                "worker_error",
-                {"ticket_number": ticket, "error": err},
-            )
+            await send_webhook("worker_error", {
+                "ticket_number": ticket,
+                "error": err
+            })
             send_error_email(ticket, f"EOPYY returned error:\n\n{raw_response}")
 
-        # 6. Return result directly (NO DB)
+        # ⭐ Return result directly (NO DB)
         return {
             "ticket_number": ticket,
             "status": msa_code,
@@ -170,16 +166,13 @@ async def process_admission_row(pool, row):
         }
 
     except Exception as e:
-        error_msg = str(e)
         logger.exception(f"[{ticket}] Admission processing error")
-
-        # Return error directly (NO DB)
         return {
             "ticket_number": ticket,
             "status": "error",
             "hl7": None,
             "raw_response": None,
-            "error": error_msg,
+            "error": str(e),
         }
 
 # ---------------------------------------------------------
@@ -327,8 +320,7 @@ async def process_discharge_row(pool, row):
 async def worker_loop():
     logger.info("worker 🚀 HL7 Worker started")
 
-    # shared asyncpg pool
-    # Create pool with retry (Neon needs 1–2 seconds)
+    # Create asyncpg pool with retry
     pool = None
     for _ in range(10):
         try:
@@ -345,9 +337,9 @@ async def worker_loop():
         try:
             db = get_new_session()
 
-            # -----------------------------------------
-            # PROCESS SINGLE ADMISSION JOBS FIRST
-            # -----------------------------------------
+            # ---------------------------------------------------------
+            # DEBUG INFO
+            # ---------------------------------------------------------
             logger.error(f"WORKER_DATABASE_URL = {raw_url!r}")
 
             async with pool.acquire() as conn:
@@ -357,6 +349,9 @@ async def worker_loop():
                 count = await conn.fetchval("SELECT COUNT(*) FROM admissions;")
                 logger.error(f"WORKER sees {count} admissions")
 
+            # ---------------------------------------------------------
+            # PROCESS ADMISSION (NO DB UPDATES)
+            # ---------------------------------------------------------
             async with pool.acquire() as conn:
                 row = await neon_retry(
                     conn,
@@ -365,19 +360,20 @@ async def worker_loop():
                     SELECT *
                     FROM admissions
                     WHERE status = 'queued' OR status IS NULL OR status = ''
-                     ORDER BY created_at ASC
+                    ORDER BY created_at ASC
                     LIMIT 1
                     """,
                 )
 
             if row:
-                await process_admission_row(pool, row)
-                await asyncio.sleep(1)
-                continue
+                # ⭐ Return HL7 + SOAP result directly
+                result = await process_admission_row(pool, row)
+                logger.info(f"worker 🎉 Admission result: {result}")
+                return result   # <—— IMPORTANT: return result directly
 
-            # -----------------------------------------
-            # THEN PROCESS HL7Job (batch discharges)
-            # -----------------------------------------
+            # ---------------------------------------------------------
+            # PROCESS HL7Job (DISCHARGES) — UNCHANGED
+            # ---------------------------------------------------------
             try:
                 result = await db.execute(
                     select(HL7Job)

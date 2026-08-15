@@ -273,34 +273,63 @@ async def create_or_process_discharge(
             detail="ticket_number is required"
         )
 
-    # 1. Save discharge to DB (same as admissions)
+    # 1️⃣ Βρες το admission με ίδιο ticket_number
+    admission_result = await db.execute(
+        select(Admission).where(Admission.ticket_number == data.ticket_number)
+    )
+    admission = admission_result.scalar_one_or_none()
+
+    if not admission:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No admission found for ticket_number {data.ticket_number}"
+        )
+
+    # 2️⃣ Auto-fill discharge fields from admission
+    auto_fields = {
+        "profile_id": admission.profile_id,
+        "installation_code": admission.installation_code,
+        "location_code": admission.location_code,
+        "admit_datetime": admission.admit_datetime,
+        "doctor_amka": admission.doctor_amka,
+        "amka": admission.amka,
+        "first_name": admission.first_name,
+        "last_name": admission.last_name,
+        "sex_val": admission.sex_val,
+        "country_code": admission.country_code,
+        "icd10_code": admission.icd10_code,
+        "icd10_desc": admission.icd10_desc,
+        "icd10_date": admission.icd10_date,
+    }
+
+    # Combine user input + auto-fill
+    discharge_data = data.dict()
+    discharge_data.update(auto_fields)
+
+    # 3️⃣ Save discharge to DB
     result = await db.execute(
         select(Discharge).where(Discharge.ticket_number == data.ticket_number)
     )
     existing = result.scalar_one_or_none()
 
     if existing:
-        update_data = data.dict(exclude_unset=True)
-        for field, value in update_data.items():
+        for field, value in discharge_data.items():
             setattr(existing, field, value)
-
         db.add(existing)
         await db.commit()
         await db.refresh(existing)
         saved_record = existing
-
     else:
-        dis = Discharge(**data.dict())
+        dis = Discharge(**discharge_data)
         db.add(dis)
         await db.commit()
         await db.refresh(dis)
         saved_record = dis
 
-    # 2. Process HL7 A03 (NO DB writes)
-    fake_row = data.dict()
-    hl7_result = await process_discharge_row(None, fake_row)
+    # 4️⃣ Build HL7 A03
+    hl7_result = await process_discharge_row(None, discharge_data)
 
-    # 3. Return both DB record + HL7 result
+    # 5️⃣ Return result to Postman
     return {
         "message": "Discharge saved to database",
         "ticket_number": saved_record.ticket_number,

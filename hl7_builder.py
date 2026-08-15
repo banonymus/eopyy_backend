@@ -205,6 +205,7 @@ def build_MSH_A03(ticket_number, profile_id, installation_code):
     )
 
 
+
 # ---------------------------------------------------------
 # EVN A03
 # ---------------------------------------------------------
@@ -212,6 +213,7 @@ def build_EVN_A03(operator_id):
     now = datetime.now().strftime("%Y%m%d%H%M")
     operator_id = operator_id or ""   # prevent None
     return f"EVN|A03|{now}|||{operator_id}"
+
 
 
 
@@ -225,11 +227,12 @@ def build_PID_A03():
 
 
 
+
 # ---------------------------------------------------------
 # PV1 A03 (minimal σύμφωνα με προδιαγραφές)
 # ---------------------------------------------------------
 def build_PV1_A03(location_code, visit_number, admit_datetime, discharge_datetime, patient_type="0", alt_visit_id=None):
-    pv1 = [""] * 53   # EXACTLY 53 fields → PV1.52 is index 52
+    pv1 = [""] * 53   # PV1.52 = index 52
 
     pv1[0] = "PV1"
     pv1[1] = ""                # Set ID
@@ -251,8 +254,6 @@ def build_PV1_A03(location_code, visit_number, admit_datetime, discharge_datetim
 
     return "|".join(pv1)
 
-
-
 # ---------------------------------------------------------
 # FULL HL7 MESSAGE A03
 # ---------------------------------------------------------
@@ -269,10 +270,10 @@ def build_full_hl7_message_A03(data):
         build_PID_A03(),
         build_PV1_A03(
             data["location_code"],
-            data["visit_number"],          # ⭐ CORRECT
+            data["visit_number"],          # ⭐ MUST BE visit_number
             data["admit_datetime"],
             data["discharge_datetime"],
             patient_type=data.get("patient_type", "0"),
-            alt_visit_id=data["visit_number"]  # ⭐ CORRECT
+            alt_visit_id=data["visit_number"]  # ⭐ MUST BE visit_number
         )
     ]) + "\r"

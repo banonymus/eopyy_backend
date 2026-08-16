@@ -125,10 +125,10 @@ def build_PV1(location_code, visit_number, admit_datetime, discharge_datetime,
 
     # PV1.5–PV1.18 empty → 15 pipes after location_code
 
-    pv1[18] = patient_type     # PV1.19
-    pv1[19] = visit_number     # PV1.20
+    pv1[21] = patient_type     # PV1.19
+    pv1[22] = visit_number     # PV1.20
 
-    pv1[44] = discharge_datetime  # PV1.45
+    pv1[47] = discharge_datetime  # PV1.45
 
     pv1[52] = alt_visit_id or visit_number  # PV1.53
 

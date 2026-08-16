@@ -130,8 +130,8 @@ def build_PV1(location_code, visit_number, admit_datetime, discharge_datetime,
     # PV1.20 — visit_number
     pv1[19] = visit_number
 
-    # PV1.47 — discharge datetime
-    pv1[47] = discharge_datetime
+    # PV1.48 — discharge datetime
+    pv1[48] = discharge_datetime
 
     # PV1.53 — alt visit id
     pv1[52] = alt_visit_id or visit_number

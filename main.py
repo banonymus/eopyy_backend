@@ -330,7 +330,7 @@ async def create_or_process_discharge(
 
     # 4️⃣ Build HL7 A03
     hl7_result = await process_discharge_row(None, discharge_data)
-    logging.info("FINAL HL7 DISCHARGE STRING: %s", repr(hl7_result))
+
 
     # 5️⃣ Return result to Postman
     return {

@@ -279,4 +279,4 @@ def build_full_hl7_message_A03(data):
             alt_visit_id=data["visit_number"]  # ⭐ MUST BE visit_number
         )
     ]) + "\r"
-    print("FINAL HL7 STRING:", repr(hl7))
+

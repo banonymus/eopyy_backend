@@ -231,7 +231,7 @@ async def process_discharge_row(pool, row):
 
         # 1. Build HL7 A03
         hl7 = build_hl7_message(data)
-        logging.info("FINAL HL7 DISCHARGE STRING: %s", repr(hl7))
+        #logging.info("FINAL HL7 DISCHARGE STRING: %s", repr(hl7))
 
         # 2. Send SOAP
         raw_response = submit_discarge_hl7(hl7)

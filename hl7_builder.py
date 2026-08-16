@@ -240,13 +240,18 @@ def build_PV1_A03(location_code, visit_number, admit_datetime, discharge_datetim
 
     pv1[3] = location_code     # PV1.4
 
-    pv1[15] = patient_type     # PV1.16
+    # PV1.5–PV1.15 remain empty → this produces the required 11 pipes
+    # PV1.16:
+    pv1[15] = patient_type
 
-    pv1[16] = visit_number     # ⭐ PV1.17 CORRECT POSITION
+    # PV1.17 (correct position for visit_number)
+    pv1[16] = visit_number
 
-    pv1[44] = discharge_datetime  # PV1.45
+    # PV1.45 (discharge datetime)
+    pv1[44] = discharge_datetime
 
-    pv1[52] = alt_visit_id or visit_number  # PV1.53
+    # PV1.53 (alt visit id)
+    pv1[52] = alt_visit_id or visit_number
 
     return "|".join(pv1)
 

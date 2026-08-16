@@ -128,7 +128,7 @@ def build_PV1(location_code, visit_number, admit_datetime, discharge_datetime,
     pv1[21] = patient_type     # PV1.19
     pv1[22] = visit_number     # PV1.20
 
-    pv1[47] = discharge_datetime  # PV1.45
+    pv1[42] = discharge_datetime  # PV1.42
 
     pv1[50] = alt_visit_id or visit_number  # PV1.51
 

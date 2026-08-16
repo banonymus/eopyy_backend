@@ -250,11 +250,15 @@ def build_PV1_A03(location_code, visit_number, admit_datetime, discharge_datetim
     pv1[18] = patient_type     # PV1.19
     pv1[19] = visit_number     # PV1.20
 
-    pv1[44] = discharge_datetime  # PV1.45
+    # ⭐ Correct position for discharge datetime (PV1.46)
+    # Correct HL7 example places discharge_datetime AFTER 26 pipes from visit_number
+    pv1[45] = discharge_datetime
 
-    pv1[52] = alt_visit_id or visit_number  # PV1.53
+    # ⭐ Correct position for alt_visit_id (PV1.51)
+    pv1[51] = alt_visit_id or visit_number
 
     return "|".join(pv1)
+
 
 
 # ---------------------------------------------------------

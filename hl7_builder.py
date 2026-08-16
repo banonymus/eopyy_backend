@@ -237,25 +237,19 @@ def build_PID_A03():
 def build_PV1_A03(location_code, visit_number, admit_datetime, discharge_datetime,
                   patient_type="0", alt_visit_id=None):
 
-    pv1 = [""] * 53   # PV1.52 = index 52
+    pv1 = [""] * 53   # MUST be exactly 53 fields (0..52)
 
     pv1[0] = "PV1"
-    pv1[1] = ""                # PV1.1
-    pv1[2] = "I"               # PV1.2
+    pv1[1] = ""
+    pv1[2] = "I"
 
-    pv1[3] = location_code     # PV1.4
-
-    # PV1.5–PV1.18 empty → 15 pipes after location_code
+    pv1[3] = location_code
 
     pv1[18] = patient_type     # PV1.19
     pv1[19] = visit_number     # PV1.20
 
-    # ⭐ Correct position for discharge datetime (PV1.46)
-    # Correct HL7 example places discharge_datetime AFTER 26 pipes from visit_number
-    pv1[45] = discharge_datetime
-
-    # ⭐ Correct position for alt_visit_id (PV1.51)
-    pv1[51] = alt_visit_id or visit_number
+    pv1[45] = discharge_datetime  # PV1.46
+    pv1[51] = alt_visit_id or visit_number  # PV1.52
 
     return "|".join(pv1)
 

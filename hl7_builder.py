@@ -114,27 +114,23 @@ def build_NK1(amka, nk1_ama, last, first):
 
 def build_PV1(location_code, visit_number, admit_datetime, discharge_datetime,
                   patient_type="0", alt_visit_id=None):
+
     pv1 = [""] * 53   # PV1.52 = index 52
 
     pv1[0] = "PV1"
-    pv1[1] = ""                # Set ID
-    pv1[2] = "I"               # Patient Class
+    pv1[1] = ""                # PV1.1
+    pv1[2] = "I"               # PV1.2
 
     pv1[3] = location_code     # PV1.4
 
-    # PV1.5–PV1.18 κενά → 15 pipes μετά το location_code
+    # PV1.5–PV1.18 empty → 15 pipes after location_code
 
-    # PV1.19 — patient_type
-    pv1[18] = patient_type
+    pv1[18] = patient_type     # PV1.19
+    pv1[19] = visit_number     # PV1.20
 
-    # PV1.20 — visit_number
-    pv1[19] = visit_number
+    pv1[44] = discharge_datetime  # PV1.45
 
-    # PV1.48 — discharge datetime
-    pv1[48] = discharge_datetime
-
-    # PV1.53 — alt visit id
-    pv1[52] = alt_visit_id or visit_number
+    pv1[52] = alt_visit_id or visit_number  # PV1.53
 
     return "|".join(pv1)
 

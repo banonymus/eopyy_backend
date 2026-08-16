@@ -112,27 +112,28 @@ def build_NK1(amka, nk1_ama, last, first):
     return "|".join(nk1)
 
 
-def build_PV1(location_code, visit_number, admit_datetime, discharge_datetime,
-                  patient_type="0", alt_visit_id=None):
+def build_PV1(location_code, doctor_code, ticket_number, admit_datetime, alt_visit_id=None):
+    admit_datetime = admit_datetime[:12]   # YYYYMMDDHHMM
 
-    pv1 = [""] * 53   # PV1.52 = index 52
+    # PV1 must have EXACTLY 50 fields (indexes 0..49)
+    pv1 = [""] * 50
 
-    pv1[0] = "PV1"
-    pv1[1] = ""                # PV1.1
-    pv1[2] = "I"               # PV1.2
+    pv1[0] = "PV1"              # Segment name
+    pv1[1] = ""                 # PV1.1 Set ID
+    pv1[2] = "I"                # PV1.2 Patient Class
 
-    pv1[3] = location_code     # PV1.4
+    pv1[3] = location_code      # PV1.4 Assigned Patient Location
+    pv1[7] = doctor_code        # PV1.7 Attending Doctor
 
-    # PV1.5–PV1.18 empty → 15 pipes after location_code
+    pv1[19] = ticket_number     # PV1.19 Visit Number
 
-    pv1[18] = patient_type     # PV1.19
-    pv1[19] = visit_number     # PV1.20
+    pv1[44] = admit_datetime    # PV1.44 Admit Date/Time
 
-    pv1[44] = discharge_datetime  # PV1.45
-
-    pv1[52] = alt_visit_id or visit_number  # PV1.53
+    # PV1.50 (index 49)
+    pv1[49] = alt_visit_id if alt_visit_id else ticket_number
 
     return "|".join(pv1)
+
 
 
 

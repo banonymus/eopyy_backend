@@ -15,7 +15,7 @@ def build_msh21(profile_id: str, installation_code: str):
 # MSH (21 fields)
 # ---------------------------------------------------------
 def build_MSH(ticket_number, profile_id, installation_code):
-    now = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+    now = datetime.now().strftime("%Y%m%d%H%M")
 
     msh = [
         "MSH",                  # 1  Segment ID
@@ -47,7 +47,7 @@ def build_MSH(ticket_number, profile_id, installation_code):
 # EVN
 # ---------------------------------------------------------
 def build_EVN(operator_id):
-    now = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+    now = datetime.now().strftime("%Y%m%d%H%M")
     return f"EVN|A01|{now}|||{operator_id}"
 
 

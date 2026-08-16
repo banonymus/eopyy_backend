@@ -238,19 +238,15 @@ def build_PV1_A03(location_code, visit_number, admit_datetime, discharge_datetim
     pv1[1] = ""                # Set ID
     pv1[2] = "I"               # Patient Class
 
-    # MUST BE NUMERIC (EOPYY requirement)
-    pv1[3] = location_code
+    pv1[3] = location_code     # PV1.4
 
-    pv1[15] = patient_type     # PV1.16 patient type
+    pv1[15] = patient_type     # PV1.16
 
-    # Visit number from admission (NOT ticket_number)
-    pv1[19] = visit_number
+    pv1[16] = visit_number     # ⭐ PV1.17 CORRECT POSITION
 
-    # Discharge datetime
-    pv1[44] = discharge_datetime
+    pv1[44] = discharge_datetime  # PV1.45
 
-    # PV1.52 = visit_number again
-    pv1[52] = alt_visit_id or visit_number
+    pv1[52] = alt_visit_id or visit_number  # PV1.53
 
     return "|".join(pv1)
 

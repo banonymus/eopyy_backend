@@ -78,6 +78,7 @@ def build_hl7_discharge(data: dict) -> str:
             alt_visit_id=data["ticket_number"],
         ),
     ]) + "\r"
+    print("FINAL HL7 STRING:", repr(hl7))
 
 def build_hl7_message(data: dict) -> str:
     """Auto-select A01 or A03 based on presence of discharge_datetime."""

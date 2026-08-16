@@ -280,4 +280,3 @@ def build_full_hl7_message_A03(data):
         )
     ]) + "\r"
     print("FINAL HL7 STRING:", repr(hl7))
-    return hl7

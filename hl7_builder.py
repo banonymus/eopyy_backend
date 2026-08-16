@@ -251,7 +251,8 @@ def build_PV1_A03(location_code, visit_number, admit_datetime, discharge_datetim
     pv1[45] = discharge_datetime
     pv1[51] = alt_visit_id or visit_number
 
-    print("PV1_A03 LOADED: fields=", len(pv1))
+    print("PV1_A03 LAST FIELD:", pv1[51], "LEN:", len(pv1))
+
     return "|".join(pv1)
 
 

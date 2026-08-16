@@ -1,4 +1,5 @@
 # hl7_builder_worker.py
+import logging
 
 from hl7_builder import (
     build_MSH,
@@ -61,7 +62,7 @@ def build_hl7_admission(data: dict) -> str:
     ]) + "\r"
 
 def build_hl7_discharge(data: dict) -> str:
-    return "\r".join([
+    hl7 = "\r".join([
         build_MSH_A03(
             data["ticket_number"],
             data["profile_id"],
@@ -71,13 +72,16 @@ def build_hl7_discharge(data: dict) -> str:
         build_PID_A03(),
         build_PV1_A03(
             data["location_code"],
-            data["visit_number"],          # MUST be visit_number
+            data["visit_number"],      # use visit_number
             data["admit_datetime"],
             data["discharge_datetime"],
             patient_type="0",
-            alt_visit_id=data["ticket_number"],
+            alt_visit_id=data["visit_number"],  # NOT ticket_number
         ),
     ]) + "\r"
+
+    logging.info("RAW HL7 STRING: %s", repr(hl7))
+    return hl7
 
 
 

@@ -237,13 +237,16 @@ def build_PID_A03():
 def build_PV1_A03(location_code, visit_number, admit_datetime, discharge_datetime,
                   patient_type="0", alt_visit_id=None):
 
-    pv1 = [""] * 53   # indexes 0..52
+    # MUST be exactly 53 fields (indexes 0..52)
+    pv1 = [""] * 53
 
     pv1[0] = "PV1"
     pv1[1] = ""
     pv1[2] = "I"
 
     pv1[3] = location_code
+
+    # PV1.5–PV1.18 empty → 15 pipes after location_code
 
     pv1[18] = patient_type     # PV1.19
     pv1[19] = visit_number     # PV1.20

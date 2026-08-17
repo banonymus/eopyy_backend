@@ -252,6 +252,10 @@ def build_PV1_A03(location_code, visit_number, admit_datetime, discharge_datetim
 
     pv1[51] = alt_visit_id or visit_number  # PV1.52
 
+
+
+    # FIX: remove one extra pipe after discharge datetime
+    pv1 = pv1.replace("||||||", "|||||", 1)
     return "|".join(pv1)
 
 

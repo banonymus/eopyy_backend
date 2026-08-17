@@ -71,7 +71,7 @@ def build_hl7_discharge(data: dict) -> str:
         data["admit_datetime"],
         data["discharge_datetime"],
         patient_type="0",
-        alt_visit_id=data["ticket_number"],
+        alt_visit_id=data["visit_number"],
     )
 
     # --- FIX: remove ONE extra pipe after discharge datetime ---

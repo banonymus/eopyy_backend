@@ -131,7 +131,7 @@ def build_PV1(location_code, doctor_code, ticket_number, admit_datetime, alt_vis
 
     # PV1.50 (index 49)
     #pv1[49] = alt_visit_id if alt_visit_id else ticket_number
-    pv1[49] = ticket_number+1
+    pv1[49] = f"{ticket_number}01"  #ticket_number + 1
 
     return "|".join(pv1)
 

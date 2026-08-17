@@ -67,11 +67,11 @@ def build_hl7_admission(data: dict) -> str:
 def build_hl7_discharge(data: dict) -> str:
     pv1 = build_PV1_A03(
         data["location_code"],
-        data["visit_number"],
+        data["ticket_number"],
         data["admit_datetime"],
         data["discharge_datetime"],
         patient_type="0",
-        alt_visit_id=data["visit_number"],
+        alt_visit_id=data["ticket_number"],
     )
 
     # --- FIX: remove ONE extra pipe after discharge datetime ---

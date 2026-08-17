@@ -291,7 +291,7 @@ async def create_or_process_discharge(
         "installation_code": admission.installation_code,
         "location_code": admission.location_code,
         "operator_id": admission.operator_id,
-        #"visit_number": admission.visit_number,
+        "visit_number": admission.visit_number,
         "admit_datetime": admission.admit_datetime,
         "doctor_amka": admission.doctor_amka,
         "amka": admission.amka,

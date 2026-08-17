@@ -97,7 +97,7 @@ def build_hl7_discharge(data: dict) -> str:
     #hl7 = hl7.replace(r"MSH|^~\&|||||", r"MSH|^~\&|I||||", 1)
 
 
-    logging.info("RAW HL7 STRING: %s", repr(hl7))
+    logging.info("RAW HL7 STRING: %s", print(hl7))
     return hl7
 
 

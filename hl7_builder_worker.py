@@ -74,10 +74,13 @@ def build_hl7_discharge(data: dict) -> str:
         alt_visit_id=data["visit_number"],
     )
 
-    # 1️⃣ κόβουμε ένα extra pipe μετά το discharge datetime
-    pv1 = pv1.replace("||||||", "|||||", 1)
+    # --- FIX: ensure exactly 53 fields ---
+    fields = pv1.split("|")
+    if len(fields) > 53:
+        fields = fields[:53]
+    pv1 = "|".join(fields)
 
-    # 2️⃣ κόβουμε ΟΠΟΙΑ pipes υπάρχουν στο ΤΕΛΟΣ του PV1
+    # --- FIX: remove trailing pipes ---
     pv1 = pv1.rstrip("|")
 
     hl7 = "\r".join([
@@ -90,9 +93,8 @@ def build_hl7_discharge(data: dict) -> str:
         build_PID_A03(),
         pv1,
     ]) + "\r"
-    # -------debug-------------------
+
     logging.info("RAW HL7 STRING: %s", repr(hl7))
-    # -------------------------------
     return hl7
 
 

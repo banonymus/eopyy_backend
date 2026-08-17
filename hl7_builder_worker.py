@@ -74,11 +74,11 @@ def build_hl7_discharge(data: dict) -> str:
         alt_visit_id=data["visit_number"],
     )
 
-    # --- FIX: ensure exactly 53 fields ---
-    fields = pv1.split("|")
-    if len(fields) > 53:
-        fields = fields[:53]
-    pv1 = "|".join(fields)
+    # --- FIX: remove ONE extra pipe after discharge datetime ---
+    dd = data["discharge_datetime"]
+    wrong = f"{dd}||||||"
+    correct = f"{dd}|||||"
+    pv1 = pv1.replace(wrong, correct)
 
     # --- FIX: remove trailing pipes ---
     pv1 = pv1.rstrip("|")

@@ -310,6 +310,8 @@ async def create_or_process_discharge(
     discharge_data = data.dict()
     discharge_data.update(auto_fields)
 
+    # ⭐ ΑΦΑΙΡΕΣΗ visit_number ΠΡΙΝ το ORM
+    discharge_data.pop("visit_number", None)
     # 3️⃣ Save discharge to DB
     result = await db.execute(
         select(Discharge).where(Discharge.ticket_number == data.ticket_number)

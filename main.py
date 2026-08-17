@@ -302,6 +302,8 @@ async def create_or_process_discharge(
         "icd10_code": admission.icd10_code,
         "icd10_desc": admission.icd10_desc,
         "icd10_date": admission.icd10_date,
+        "admission_ticket_number": admission.ticket_number
+
     }
 
     # Combine user input + auto-fill

@@ -68,7 +68,7 @@ async def process_admission_row(pool, row):
         hl7 = build_hl7_message(data)
 
         # 2. Send SOAP
-        raw_response = submit_hl7(hl7)
+        raw_response = submit_hl7(hl7,"A01")
 
         # 3. Parse ACK
         msa_code, message_id, err = parse_hl7_response(raw_response)
@@ -129,7 +129,7 @@ async def process_discharge_row(pool, row):
         hl7 = build_hl7_message(data)
 
         # 2. Send SOAP
-        raw_response = submit_hl7(hl7)
+        raw_response = submit_hl7(hl7,"A03")
 
         # 3. Parse ACK
         msa_code, message_id, err = parse_hl7_response(raw_response)
@@ -189,8 +189,8 @@ async def process_discharge_row(pool, row):
         # 1. Build HL7 A03
         hl7 = build_hl7_discharge(data)
 
-        # 2. Send SOAP (same endpoint as A01)
-        raw_response = submit_hl7(hl7)
+        # 2. Send SOAP (same endpoint as A03)
+        raw_response = submit_hl7(hl7,"A03")
 
         # 3. Parse ACK
         msa_code, message_id, err = parse_hl7_response(raw_response)

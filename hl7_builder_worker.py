@@ -66,6 +66,18 @@ def trim_trailing_pipes(segment: str) -> str:
 
 
 def build_hl7_discharge(data: dict) -> str:
+    pv1 = build_PV1_A03(
+        data["location_code"],
+        data["visit_number"],      # use visit_number
+        data["admit_datetime"],
+        data["discharge_datetime"],
+        patient_type="0",
+        alt_visit_id=data["visit_number"],  # NOT ticket_number
+    )
+
+    # ⭐ FIX: remove exactly ONE extra pipe after discharge datetime
+    pv1 = pv1.replace("||||||", "|||||", 1)
+
     hl7 = "\r".join([
         build_MSH_A03(
             data["ticket_number"],
@@ -74,15 +86,11 @@ def build_hl7_discharge(data: dict) -> str:
         ),
         build_EVN_A03(data["operator_id"]),
         build_PID_A03(),
-        build_PV1_A03(
-            data["location_code"],
-            data["visit_number"],      # use visit_number
-            data["admit_datetime"],
-            data["discharge_datetime"],
-            patient_type="0",
-            alt_visit_id=data["visit_number"],  # NOT ticket_number
-        ),
+        pv1,
     ]) + "\r"
+
+    return hl7
+
 
 
     # FIX: remove trailing pipes from PV1

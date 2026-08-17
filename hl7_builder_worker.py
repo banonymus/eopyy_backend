@@ -94,7 +94,7 @@ def build_hl7_discharge(data: dict) -> str:
         pv1,
     ]) + "\r"
     # FIX: διορθώνουμε το MSH που έχει έξτρα |
-    #hl7 = hl7.replace("MSH|^~\\&|||||", "MSH|^~\\&|I||||", 1)
+    hl7 = hl7.replace("MSH|^~\\&|||||", 'MSH|^~\&|||||', 1)
 
 
     logging.info("RAW HL7 STRING: %s", repr(hl7))

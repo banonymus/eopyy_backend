@@ -61,8 +61,7 @@ def build_hl7_admission(data: dict) -> str:
         build_DG1(normalize(data, "icd10_code")),
     ]) + "\r"
 
-def trim_trailing_pipes(segment: str) -> str:
-    return segment.rstrip("|")
+
 
 
 def build_hl7_discharge(data: dict) -> str:
@@ -91,20 +90,17 @@ def build_hl7_discharge(data: dict) -> str:
         build_PID_A03(),
         pv1,
     ]) + "\r"
-
-    return hl7
-
-
-
-
-    # FIX: remove trailing pipes from PV1
-    lines = hl7.split("\r")
-    lines = [trim_trailing_pipes(line) for line in lines]
-    hl7 = "\r".join(lines) + "\r"
-    #-------debug-------------------
+    # -------debug-------------------
     logging.info("RAW HL7 STRING: %s", repr(hl7))
-    #-------------------------------
+    # -------------------------------
     return hl7
+
+
+
+
+
+
+
 
 
 

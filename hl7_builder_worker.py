@@ -68,15 +68,18 @@ def trim_trailing_pipes(segment: str) -> str:
 def build_hl7_discharge(data: dict) -> str:
     pv1 = build_PV1_A03(
         data["location_code"],
-        data["visit_number"],      # use visit_number
+        data["visit_number"],
         data["admit_datetime"],
         data["discharge_datetime"],
         patient_type="0",
-        alt_visit_id=data["visit_number"],  # NOT ticket_number
+        alt_visit_id=data["visit_number"],
     )
 
-    # ⭐ FIX: remove exactly ONE extra pipe after discharge datetime
+    # 1️⃣ κόβουμε ένα extra pipe μετά το discharge datetime
     pv1 = pv1.replace("||||||", "|||||", 1)
+
+    # 2️⃣ κόβουμε ΟΠΟΙΑ pipes υπάρχουν στο ΤΕΛΟΣ του PV1
+    pv1 = pv1.rstrip("|")
 
     hl7 = "\r".join([
         build_MSH_A03(
@@ -90,6 +93,7 @@ def build_hl7_discharge(data: dict) -> str:
     ]) + "\r"
 
     return hl7
+
 
 
 

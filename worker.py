@@ -172,7 +172,7 @@ async def process_admission_row(pool, row):
         hl7 = build_hl7_message(data)
 
         # 2. Send SOAP
-        raw_response = submit_hl7(hl7)
+        raw_response = submit_hl7(hl7, "A01")
 
         # 3. Parse ACK
         msa_code, message_id, err = parse_hl7_response(raw_response)
@@ -234,7 +234,7 @@ async def process_discharge_row(pool, row):
         #logging.info("FINAL HL7 DISCHARGE STRING: %s", repr(hl7))
 
         # 2. Send SOAP
-        raw_response = submit_discarge_hl7(hl7)
+        raw_response = submit_discarge_hl7(hl7,"A03")
 
         # 3. Parse ACK
         msa_code, message_id, err = parse_hl7_response(raw_response)

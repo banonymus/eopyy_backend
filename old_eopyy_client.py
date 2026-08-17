@@ -22,7 +22,7 @@ class EOPYY_TLS12_Adapter(HTTPAdapter):
         kwargs["ssl_context"] = ctx
         return super().init_poolmanager(*args, **kwargs)
 
-def submit_hl7(hl7_message):
+def submit_hl7(hl7_message, message_type):
     try:
         hl7_message = hl7_message.replace("\r\n", "\r").replace("\n", "\r")
         hl7_cdata = etree.CDATA(hl7_message)
@@ -48,7 +48,13 @@ def submit_hl7(hl7_message):
         pwd.text = PASSWORD
 
         body = etree.SubElement(envelope, "{http://schemas.xmlsoap.org/soap/envelope/}Body")
-        method = etree.SubElement(body, "{http://bean.intracom.com/}saveAdmissionHl7")
+
+        # ⭐ ΕΔΩ ΕΙΝΑΙ Η ΜΑΓΕΙΑ
+        if message_type == "A01":
+            method = etree.SubElement(body, "{http://bean.intracom.com/}saveAdmissionHl7")
+        else:
+            method = etree.SubElement(body, "{http://bean.intracom.com/}saveDischargeHl7")
+
         arg0 = etree.SubElement(method, "arg0")
         hl7_node = etree.SubElement(arg0, "hl7ADT")
         hl7_node.text = hl7_cdata

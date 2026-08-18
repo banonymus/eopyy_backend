@@ -62,7 +62,7 @@ class Discharge(Base):
     doctor_amka = Column(String)
     admit_datetime = Column(String)
     discharge_datetime = Column(Text)
-    alt_visit_id = Column(String)
+    #alt_visit_id = Column(String)
     icd10_code = Column(String)
     icd10_desc = Column(String)
     icd10_date = Column(String)

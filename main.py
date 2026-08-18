@@ -187,7 +187,7 @@ async def create_or_upsert_admission(
         saved_record = existing
 
     else:
-        adm = Admission(**data.dict())
+        adm = Admission(**admission_dict)
         db.add(adm)
         await db.commit()
         await db.refresh(adm)

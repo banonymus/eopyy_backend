@@ -167,7 +167,9 @@ async def create_or_upsert_admission(
     # ⭐ 0) ADD alt_visit_id BEFORE SAVING TO NEON
     # ----------------------------------------------------
     admission_dict = data.dict()
-    admission_dict["alt_visit_id"] = f"{data.ticket_number}1"  # ALWAYS DIFFERENT
+    #admission_dict["alt_visit_id"] = f"{data.ticket_number}1"  # ALWAYS DIFFERENT
+    ticket = int(data.ticket_number)
+    admission_dict["alt_visit_id"] = str(ticket + 1)
     #----------------------------------------------------------------------------
 
     result = await db.execute(

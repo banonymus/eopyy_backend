@@ -312,7 +312,8 @@ async def create_or_process_discharge(
         "icd10_code": admission.icd10_code,
         "icd10_desc": admission.icd10_desc,
         "icd10_date": admission.icd10_date,
-        "admission_ticket_number": admission.ticket_number,
+
+        # ⭐ HL7 ONLY — MUST BE SENT TO WORKER
         "admission_alt_visit_id": admission.alt_visit_id
     }
 
@@ -320,11 +321,17 @@ async def create_or_process_discharge(
     discharge_data = data.dict()
     discharge_data.update(auto_fields)
 
-    # ⭐ ΑΦΑΙΡΕΣΗ visit_number ΠΡΙΝ το ORM
-    discharge_data.pop("visit_number", None)
-    discharge_data.pop("admission_ticket_number", None)
-    discharge_data.pop("alt_visit_id", None)
-    discharge_data.pop("admission_alt_visit_id", None)
+    # ----------------------------------------------------
+    # ⭐ A) ORM DATA — MUST NOT CONTAIN admission_alt_visit_id
+    # ----------------------------------------------------
+    discharge_data_for_db = discharge_data.copy()
+
+    discharge_data_for_db.pop("visit_number", None)
+    discharge_data_for_db.pop("admission_ticket_number", None)
+    discharge_data_for_db.pop("alt_visit_id", None)
+
+    # ⭐ REMOVE ONLY FROM ORM
+    discharge_data_for_db.pop("admission_alt_visit_id", None)
 
     # 3️⃣ Save discharge to DB
     result = await db.execute(
@@ -333,22 +340,23 @@ async def create_or_process_discharge(
     existing = result.scalar_one_or_none()
 
     if existing:
-        for field, value in discharge_data.items():
+        for field, value in discharge_data_for_db.items():
             setattr(existing, field, value)
         db.add(existing)
         await db.commit()
         await db.refresh(existing)
         saved_record = existing
     else:
-        dis = Discharge(**discharge_data)
+        dis = Discharge(**discharge_data_for_db)
         db.add(dis)
         await db.commit()
         await db.refresh(dis)
         saved_record = dis
 
-    # 4️⃣ Build HL7 A03
+    # ----------------------------------------------------
+    # ⭐ B) WORKER DATA — MUST CONTAIN admission_alt_visit_id
+    # ----------------------------------------------------
     hl7_result = await process_discharge_row(None, discharge_data)
-
 
     # 5️⃣ Return result to Postman
     return {

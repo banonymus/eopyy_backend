@@ -199,7 +199,7 @@ async def create_or_upsert_admission(
     # ----------------------------------------------------
     # 2) CALL HL7 + SOAP (NO DB UPDATE)
     # ----------------------------------------------------
-    fake_row = data.dict()
+    fake_row = admission_dict.dict()
     hl7_result = await process_admission_row(None, fake_row)
 
     # ----------------------------------------------------

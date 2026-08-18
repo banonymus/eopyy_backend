@@ -321,7 +321,7 @@ async def create_or_process_discharge(
     # ⭐ ΑΦΑΙΡΕΣΗ visit_number ΠΡΙΝ το ORM
     discharge_data.pop("visit_number", None)
     discharge_data.pop("admission_ticket_number", None)
-    discharge_data.pop("admission_alt_visit_id", None)
+    discharge_data.pop("alt_visit_id", None)
     # 3️⃣ Save discharge to DB
     result = await db.execute(
         select(Discharge).where(Discharge.ticket_number == data.ticket_number)

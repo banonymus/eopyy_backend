@@ -130,9 +130,10 @@ def build_PV1(location_code, doctor_code, ticket_number, admit_datetime, alt_vis
     pv1[44] = admit_datetime    # PV1.44 Admit Date/Time
 
     # PV1.50 (index 49)
-    pv1[49] = alt_visit_id if alt_visit_id else ticket_number
+    #pv1[49] = alt_visit_id if alt_visit_id else ticket_number
     #pv1[49] = f"{ticket_number}01"  #ticket_number + 1
 
+    pv1[49] = str(alt_visit_id)  # ⭐ MUST BE DIFFERENT
     return "|".join(pv1)
 
 

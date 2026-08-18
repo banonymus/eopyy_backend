@@ -56,6 +56,7 @@ def build_hl7_admission(data: dict) -> str:
             normalize(data, "doctor_amka"),
             normalize(data, "ticket_number"),
             normalize(data, "admit_datetime"),
+            normalize(data, "alt_visit_id"),  # ⭐ ΝΕΟ ΠΕΔΙΟ
         ),
         build_PV2(normalize(data, "admit_datetime")),
         build_DG1(normalize(data, "icd10_code")),
@@ -71,7 +72,8 @@ def build_hl7_discharge(data: dict) -> str:
         data["admit_datetime"],
         data["discharge_datetime"],
         patient_type="0",
-        alt_visit_id=data["ticket_number"],
+        #alt_visit_id=data["ticket_number"],
+        alt_visit_id=data["admission_alt_visit_id"],
     )
 
     # --- FIX: remove ONE extra pipe after discharge datetime ---

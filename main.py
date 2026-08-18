@@ -162,6 +162,14 @@ async def create_or_upsert_admission(
     # ----------------------------------------------------
     # 1) SAVE admission to database (as you want)
     # ----------------------------------------------------
+
+    # ----------------------------------------------------
+    # ⭐ 0) ADD alt_visit_id BEFORE SAVING TO NEON
+    # ----------------------------------------------------
+    admission_dict = data.dict()
+    admission_dict["alt_visit_id"] = f"{data.ticket_number}01"  # ALWAYS DIFFERENT
+    #----------------------------------------------------------------------------
+
     result = await db.execute(
         select(Admission).where(Admission.ticket_number == data.ticket_number)
     )
@@ -302,8 +310,8 @@ async def create_or_process_discharge(
         "icd10_code": admission.icd10_code,
         "icd10_desc": admission.icd10_desc,
         "icd10_date": admission.icd10_date,
-        "admission_ticket_number": admission.ticket_number
-
+        "admission_ticket_number": admission.ticket_number,
+        "admission_alt_visit_id": admission.alt_visit_id
     }
 
     # Combine user input + auto-fill
@@ -313,6 +321,7 @@ async def create_or_process_discharge(
     # ⭐ ΑΦΑΙΡΕΣΗ visit_number ΠΡΙΝ το ORM
     discharge_data.pop("visit_number", None)
     discharge_data.pop("admission_ticket_number", None)
+    discharge_data.pop("admission_alt_visit_id", None)
     # 3️⃣ Save discharge to DB
     result = await db.execute(
         select(Discharge).where(Discharge.ticket_number == data.ticket_number)

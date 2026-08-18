@@ -8,6 +8,7 @@ class Admission(Base):
     __tablename__ = "admissions"
     id = Column(Integer, primary_key=True, index=True)
     ticket_number = Column(String(64), unique=True, index=True, nullable=False)
+    alt_visit_id = Column(String(64), index=True)
     profile_id = Column(String(50))
     installation_code = Column(String(50))
     operator_id = Column(String(50))

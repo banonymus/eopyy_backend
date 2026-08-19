@@ -202,11 +202,11 @@ import datetime
 
 from datetime import datetime
 
-def build_MSH_A03(ticket_number, profile_id, installation_code):
+def build_MSH_A03(discharge_ticket_number,ticket_number, profile_id, installation_code):
     now = datetime.now().strftime("%Y%m%d%H%M")
     return (
         #f"MSH|^~\\&|||||{now}||ADT^A03^ADT_A03|{ticket_number}|P|2.6|||||||||"
-        f"MSH|^~\\&|||||{now}||ADT^A03^ADT_A03|2026000158649|P|2.6|||||||||"
+        f"MSH|^~\\&|||||{now}||ADT^A03^ADT_A03|{discharge_ticket_number}|P|2.6|||||||||"
         f"{profile_id}|^^^^^^^^^{installation_code}"
     )
 
@@ -238,7 +238,7 @@ def build_PID_A03():
 # PV1 A03 (minimal σύμφωνα με προδιαγραφές)
 # ---------------------------------------------------------
 def build_PV1_A03(location_code, visit_number, admit_datetime, discharge_datetime,
-                  patient_type="0", alt_visit_id=None):
+                  discharge_ticket_number,patient_type="0", alt_visit_id=None):
 
     pv1 = [""] * 53  # 0..52
 
@@ -254,7 +254,7 @@ def build_PV1_A03(location_code, visit_number, admit_datetime, discharge_datetim
     pv1[45] = discharge_datetime          # PV1.46
 
     #pv1[51] = alt_visit_id or visit_number  # PV1.52
-    pv1[51] = '2026000158649'
+    pv1[51] = discharge_ticket_number
 
 
 
@@ -270,6 +270,7 @@ def build_PV1_A03(location_code, visit_number, admit_datetime, discharge_datetim
 def build_full_hl7_message_A03(data):
     return "\r".join([
         build_MSH_A03(
+            data["discharge_ticket_number"],
             data["ticket_number"],
             data["profile_id"],
             data["installation_code"]
@@ -282,7 +283,8 @@ def build_full_hl7_message_A03(data):
             data["admit_datetime"],
             data["discharge_datetime"],
             patient_type=data.get("patient_type", "0"),
-            alt_visit_id=data["visit_number"]  # ⭐ MUST BE visit_number
+            alt_visit_id=data["visit_number"],  # ⭐ MUST BE visit_number
+
         )
     ]) + "\r"
 

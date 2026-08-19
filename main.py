@@ -295,6 +295,8 @@ async def create_or_process_discharge(
             status_code=404,
             detail=f"No admission found for ticket_number {data.ticket_number}"
         )
+    # ⭐ READ discharge_ticket_number FROM ADMISSION
+    discharge_ticket_number = admission.discharge_ticket_number
 
     # 2️⃣ Auto-fill discharge fields from admission
     auto_fields = {
@@ -315,7 +317,9 @@ async def create_or_process_discharge(
         "icd10_date": admission.icd10_date,
 
         # ⭐ HL7 ONLY — MUST BE SENT TO WORKER
-        "admission_alt_visit_id": admission.alt_visit_id
+        "admission_alt_visit_id": admission.alt_visit_id,
+        # ⭐ NEW FIELD — USED IN A03 HL7 BUILDER
+        "discharge_ticket_number": discharge_ticket_number
     }
 
     # Combine user input + auto-fill

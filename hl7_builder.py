@@ -206,7 +206,7 @@ def build_MSH_A03(ticket_number, profile_id, installation_code):
     now = datetime.now().strftime("%Y%m%d%H%M")
     return (
         #f"MSH|^~\\&|||||{now}||ADT^A03^ADT_A03|{ticket_number}|P|2.6|||||||||"
-        f"MSH|^~\\&|||||{now}||ADT^A03^ADT_A03|2026000158650|P|2.6|||||||||"
+        f"MSH|^~\\&|||||{now}||ADT^A03^ADT_A03|2026000158649|P|2.6|||||||||"
         f"{profile_id}|^^^^^^^^^{installation_code}"
     )
 

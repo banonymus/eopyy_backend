@@ -113,7 +113,7 @@ def build_NK1(amka, nk1_ama, last, first):
 
 
 def build_PV1(location_code, doctor_code, ticket_number, admit_datetime, alt_visit_id=None):
-    admit_datetime = admit_datetime[:14]   # YYYYMMDDHHMM
+    admit_datetime = admit_datetime[:12]   # YYYYMMDDHHMM
 
     # PV1 must have EXACTLY 50 fields (indexes 0..49)
     pv1 = [""] * 50

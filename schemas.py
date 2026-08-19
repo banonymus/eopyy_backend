@@ -64,6 +64,7 @@ class AdmissionBase(BaseModel):
         return v
 
 class AdmissionCreate(AdmissionBase):
+    discharge_ticket_number: str
     pass
 
 class AdmissionRead(AdmissionBase):
@@ -73,7 +74,7 @@ class AdmissionRead(AdmissionBase):
     discharge_datetime: Optional[str] = None
     discharge_result: Optional[str] = None
     raw_response_a03: Optional[str] = None
-
+    discharge_ticket_number: str
     class Config:
         orm_mode = True
 

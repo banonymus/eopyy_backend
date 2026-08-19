@@ -163,14 +163,14 @@ async def create_or_upsert_admission(
     # 1) SAVE admission to database (as you want)
     # ----------------------------------------------------
 
-    # ----------------------------------------------------
-    # ⭐ 0) ADD alt_visit_id BEFORE SAVING TO NEON
-    # ----------------------------------------------------
+    # ⭐ ADD alt_visit_id BEFORE SAVING TO NEON
     admission_dict = data.dict()
-    #admission_dict["alt_visit_id"] = f"{data.ticket_number}1"  # ALWAYS DIFFERENT
+
     ticket = int(data.ticket_number)
     admission_dict["alt_visit_id"] = str(ticket + 1)
-    #----------------------------------------------------------------------------
+
+    # ⭐ ADD discharge_ticket_number (required)
+    admission_dict["discharge_ticket_number"] = data.discharge_ticket_number
 
     result = await db.execute(
         select(Admission).where(Admission.ticket_number == data.ticket_number)
@@ -179,13 +179,17 @@ async def create_or_upsert_admission(
 
     if existing:
         update_data = data.dict(exclude_unset=True)
+
+        # ⭐ ensure discharge_ticket_number updates too
+        if "discharge_ticket_number" in update_data:
+            existing.discharge_ticket_number = update_data["discharge_ticket_number"]
+
         for field, value in update_data.items():
             setattr(existing, field, value)
 
         db.add(existing)
         await db.commit()
         await db.refresh(existing)
-
         saved_record = existing
 
     else:
@@ -193,7 +197,6 @@ async def create_or_upsert_admission(
         db.add(adm)
         await db.commit()
         await db.refresh(adm)
-
         saved_record = adm
 
     # ----------------------------------------------------
@@ -204,20 +207,18 @@ async def create_or_upsert_admission(
 
     # ----------------------------------------------------
     # 3) RETURN BOTH:
-    #    - saved DB record
-    #    - HL7 + SOAP result
     # ----------------------------------------------------
     return {
         "message": "Admission saved to database",
         "ticket_number": saved_record.ticket_number,
         "record": jsonable_encoder(saved_record),
 
-        # HL7 result (NOT saved to DB)
         "hl7_status": hl7_result["status"],
         "hl7_message": hl7_result["hl7"],
         "hl7_raw_response": hl7_result["raw_response"],
         "hl7_error": hl7_result["error"]
     }
+
 
 
 

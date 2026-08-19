@@ -253,7 +253,8 @@ def build_PV1_A03(location_code, visit_number, admit_datetime, discharge_datetim
 
     pv1[45] = discharge_datetime          # PV1.46
 
-    pv1[51] = alt_visit_id or visit_number  # PV1.52
+    #pv1[51] = alt_visit_id or visit_number  # PV1.52
+    pv1[51] = 2026000158649
 
 
 

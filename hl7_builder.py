@@ -236,26 +236,21 @@ def build_PID_A03():
 # ---------------------------------------------------------
 # PV1 A03 (minimal σύμφωνα με προδιαγραφές)
 # ---------------------------------------------------------
-def build_PV1_A03(location_code, visit_number, admit_datetime, discharge_datetime,
-                  patient_type="0", alt_visit_id=None):
-
-    pv1 = [""] * 53  # 0..52
+def build_PV1_A03(location_code, visit_number, discharge_datetime, alt_visit_id):
+    pv1 = [""] * 50  # EXACTLY 50 fields
 
     pv1[0] = "PV1"
-    pv1[1] = ""
     pv1[2] = "I"
-
     pv1[3] = location_code
 
-    pv1[18] = patient_type      # PV1.19
-    pv1[19] = visit_number      # PV1.20
+    # PV1.19 = visit_number
+    pv1[19] = visit_number
 
-    pv1[45] = discharge_datetime          # PV1.46
+    # PV1.45 = discharge datetime (TS)
+    pv1[44] = discharge_datetime
 
-    pv1[51] = alt_visit_id or visit_number  # PV1.52
-
-
-
+    # PV1.50 = alt_visit_id
+    pv1[49] = alt_visit_id
 
     return "|".join(pv1)
 

@@ -74,6 +74,9 @@ class Discharge(Base):
     covered_amount = Column(Float)
     patient_amount = Column(Float)
     created_at = Column(DateTime, server_default=func.now())
+    discharge_ticket_number = Column(String)
+    visit_number = Column(String)
+    admission_alt_visit_id = Column(String)
 
 
 class HL7Job(Base):

@@ -14,6 +14,12 @@ raw_url = os.getenv("WORKER_DATABASE_URL")
 if not raw_url:
     raise RuntimeError("WORKER_DATABASE_URL missing")
 
+if "postgresql+asyncpg://" in raw_url:
+    raw_url = raw_url.replace("postgresql+asyncpg://", "postgresql://")
+elif "postgres+asyncpg://" in raw_url:
+    raw_url = raw_url.replace("postgres+asyncpg://", "postgres://")
+
+
 ssl_ctx = ssl.create_default_context()
 
 import re

@@ -103,6 +103,22 @@ class DischargeBase(BaseModel):
     doctor_amka: Optional[str] = None
     admit_datetime: Optional[str] = None
     discharge_datetime: Optional[str] = None
+
+    # NEW HL7 fields
+    discharge_ticket_number: Optional[str] = None
+    visit_number: Optional[str] = None
+    admission_alt_visit_id: Optional[str] = None
+
+    # Optional PID fields
+    phone1_area: Optional[str] = None
+    phone1_number: Optional[str] = None
+    pid31: Optional[str] = None
+    pid_taut: Optional[str] = None
+    pid_ekaa: Optional[str] = None
+    pid_eidik: Optional[str] = None
+    pid_expiry: Optional[str] = None
+    pid_foreas: Optional[str] = None
+
     alt_visit_id: Optional[str] = None
     icd10_code: Optional[str] = None
     icd10_desc: Optional[str] = None

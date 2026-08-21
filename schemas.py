@@ -125,6 +125,7 @@ class DischargeBase(BaseModel):
     icd10_date: Optional[str] = None
     hl7_a03: Optional[str] = None
     raw_response: Optional[str] = None
+    raw_response_a03: Optional[str] = None
     status: Optional[str] = None
     total_amount: Optional[float] = None
     covered_amount: Optional[float] = None

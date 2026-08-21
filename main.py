@@ -283,7 +283,7 @@ async def create_or_process_discharge(
             status_code=422,
             detail="ticket_number is required"
         )
-    print(">>> DISCHARGE ENDPOINT ENTERED <<<")
+    #print(">>> DISCHARGE ENDPOINT ENTERED <<<")
 
     # 1️⃣ Βρες το admission με ίδιο ticket_number
     admission_result = await db.execute(
@@ -339,7 +339,7 @@ async def create_or_process_discharge(
     # ⭐ REMOVE ONLY FROM ORM
     discharge_data_for_db.pop("admission_alt_visit_id", None)
 
-    print(">>> DISCHARGE DATA FOR DB:", discharge_data_for_db)
+    #print(">>> DISCHARGE DATA FOR DB:", discharge_data_for_db)
 
     # 3️⃣ Save discharge to DB
     result = await db.execute(
@@ -360,8 +360,8 @@ async def create_or_process_discharge(
         await db.commit()
         await db.refresh(dis)
         saved_record = dis
-    print(">>> ABOUT TO CREATE ORM OBJECT")
-    print(">>> CALLING WORKER WITH:", discharge_data)
+    #print(">>> ABOUT TO CREATE ORM OBJECT")
+    #print(">>> CALLING WORKER WITH:", discharge_data)
 
     # ----------------------------------------------------
     # ⭐ B) WORKER DATA — MUST CONTAIN admission_alt_visit_id

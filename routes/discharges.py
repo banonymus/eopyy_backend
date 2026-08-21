@@ -11,6 +11,13 @@ from app.worker_batch import process_discharge_row
 
 router = APIRouter()
 
+@router.get("/discharges/ping")
+async def ping():
+    print(">>> PING WORKS <<<")
+    return {"ok": True}
+
+
+
 @router.post("/discharges")
 async def create_or_process_discharge(
     data: DischargeCreate,

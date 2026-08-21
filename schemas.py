@@ -129,6 +129,8 @@ class DischargeBase(BaseModel):
     total_amount: Optional[float] = None
     covered_amount: Optional[float] = None
     patient_amount: Optional[float] = None
+    admission_ticket_number: Optional[str] = None
+
 
 class DischargeCreate(DischargeBase):
     ticket_number: str

@@ -59,7 +59,6 @@ from routes.webhooks import router as webhook_router
 from routes.job_status import router as job_status_router
 from app.generate_hl7 import router as generate_hl7_router
 
-from routes.discharges import router as discharges_router
 
 
 
@@ -71,7 +70,7 @@ app.include_router(webhook_router)
 app.include_router(job_status_router)
 app.include_router(generate_hl7_router)
 
-app.include_router(discharges_router)
+
 
 # ---------------------------------------------------------
 # Configuration
@@ -284,19 +283,20 @@ async def debug_headers(request: Request):
 # ---------------------------------------------------------------------
 # Discharges endpoints
 # ---------------------------------------------------------------------
-"""
+
 
 @app.post("/discharges")
 async def create_or_process_discharge(
     data: DischargeCreate,
     db: AsyncSession = Depends(get_session)
 ):
+    print(">>> DISCHARGE ENDPOINT ENTERED <<<")
     if not data.ticket_number:
         raise HTTPException(
             status_code=422,
             detail="ticket_number is required"
         )
-    #print(">>> DISCHARGE ENDPOINT ENTERED <<<")
+
 
     # 1️⃣ Βρες το admission με ίδιο ticket_number
     admission_result = await db.execute(
@@ -392,7 +392,7 @@ async def create_or_process_discharge(
         "hl7_raw_response": hl7_result["raw_response"],
         "hl7_error": hl7_result["error"]
     }
-"""
+
 
 @app.get("/discharges", response_model=List[DischargeRead])
 async def list_discharges(db: AsyncSession = Depends(get_session)):

@@ -26,12 +26,19 @@ from schemas import (
 from config import EXPECTED_KEY as CONFIG_EXPECTED_KEY, API_HEADER as CONFIG_API_HEADER
 from models import HL7Job
 from database import async_session
+from app.worker_batch import process_discharge_row
+
 
 
 # ---------------------------------------------------------
 # 1) Create FastAPI app FIRST
 # ---------------------------------------------------------
 app = FastAPI()
+
+
+
+
+
 
 import asyncio
 from app.worker_batch import worker_loop
@@ -52,6 +59,9 @@ from routes.webhooks import router as webhook_router
 from routes.job_status import router as job_status_router
 from app.generate_hl7 import router as generate_hl7_router
 
+
+
+
 # ---------------------------------------------------------
 # 3) Include routers
 # ---------------------------------------------------------
@@ -59,6 +69,8 @@ app.include_router(retry_router)
 app.include_router(webhook_router)
 app.include_router(job_status_router)
 app.include_router(generate_hl7_router)
+
+
 
 # ---------------------------------------------------------
 # Configuration

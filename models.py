@@ -48,7 +48,9 @@ class Admission(Base):
 
 class Discharge(Base):
     __tablename__ = "discharges"
+
     id = Column(BigInteger, primary_key=True)
+
     ticket_number = Column(String)
     profile_id = Column(String)
     installation_code = Column(String)
@@ -63,20 +65,30 @@ class Discharge(Base):
     doctor_amka = Column(String)
     admit_datetime = Column(String)
     discharge_datetime = Column(Text)
-    #alt_visit_id = Column(String)
+
+    alt_visit_id = Column(String)
+
     icd10_code = Column(String)
     icd10_desc = Column(String)
     icd10_date = Column(String)
+
     hl7_a03 = Column(Text)
     raw_response = Column(Text)
+    raw_response_a03 = Column(Text)
+
     status = Column(String)
+
+    error_code = Column(String)
+    error_details = Column(Text)
+
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now())
+
     total_amount = Column(Float)
     covered_amount = Column(Float)
     patient_amount = Column(Float)
-    created_at = Column(DateTime, server_default=func.now())
+
     discharge_ticket_number = Column(String)
-    visit_number = Column(String)
-    admission_alt_visit_id = Column(String)
 
 
 class HL7Job(Base):

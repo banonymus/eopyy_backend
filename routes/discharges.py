@@ -11,6 +11,9 @@ from app.worker_batch import process_discharge_row
 
 router = APIRouter()
 
+print(">>> LOADING DISCHARGES ROUTER FILE <<<")
+
+
 @router.get("/discharges/ping")
 async def ping():
     print(">>> PING WORKS <<<")

@@ -268,10 +268,27 @@ async def debug_headers(request: Request):
     logger.info("Incoming headers for debug: %s", headers)
     return {"received_headers": list(headers.keys())}
 
-# -------------------------
+# ---------------------------------------------------------------------
 # Discharges endpoints
-# -------------------------
+# ---------------------------------------------------------------------
 from app.worker_batch import process_discharge_row
+
+
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc):
+    print(">>> VALIDATION ERROR:", exc.errors())
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors()},
+    )
+
+
+
+
+
 
 @app.post("/discharges")
 async def create_or_process_discharge(

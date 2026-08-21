@@ -8,10 +8,16 @@ from database import get_session
 from models import Admission, Discharge
 from schemas import DischargeCreate
 from app.worker_batch import process_discharge_row
+import logging
+
+logger = logging.getLogger("uvicorn.error")
+
+
 
 router = APIRouter()
 
-print(">>> LOADING DISCHARGES ROUTER FILE <<<")
+logger.info(">>> DISCHARGE ENDPOINT ENTERED <<<")
+
 
 
 @router.get("/discharges/ping")

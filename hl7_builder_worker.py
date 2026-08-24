@@ -89,9 +89,10 @@ def build_hl7_discharge(data: dict) -> str:
 
     hl7 = "\r".join([
         build_MSH_A03(
-            data["ticket_number"],
-            data["profile_id"],
-            data["installation_code"],
+            data["discharge_ticket_number"],  # 1
+            data["ticket_number"],  # 2
+            data["profile_id"],  # 3
+            data["installation_code"],  # 4
         ),
         build_EVN_A03(data["operator_id"]),
         build_PID_A03(),

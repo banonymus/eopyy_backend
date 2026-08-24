@@ -329,14 +329,30 @@ async def create_or_process_discharge(
     # ----------------------------------------------------
     # ⭐ A) ORM DATA — MUST NOT CONTAIN admission_alt_visit_id
     # ----------------------------------------------------
+    # ----------------------------------------------------
+    # ⭐ A) ORM DATA — CLEANUP FIELDS NOT IN DISCHARGE MODEL
+    # ----------------------------------------------------
     discharge_data_for_db = discharge_data.copy()
 
-    discharge_data_for_db.pop("visit_number", None)
-    discharge_data_for_db.pop("admission_ticket_number", None)
-    discharge_data_for_db.pop("alt_visit_id", None)
-
-    # ⭐ REMOVE ONLY FROM ORM
-    discharge_data_for_db.pop("admission_alt_visit_id", None)
+    for bad_field in [
+        "phone1_area",
+        "phone1_number",
+        "pid31",
+        "pid_taut",
+        "pid_ekaa",
+        "pid_eidik",
+        "pid_expiry",
+        "pid_foreas",
+        "address",
+        "city",
+        "zip",
+        "country",
+        "admission_ticket_number",
+        "visit_number",
+        "alt_visit_id",
+        "admission_alt_visit_id",
+    ]:
+        discharge_data_for_db.pop(bad_field, None)
 
     # 3️⃣ Save discharge to DB
     result = await db.execute(

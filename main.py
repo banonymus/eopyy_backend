@@ -268,9 +268,9 @@ async def debug_headers(request: Request):
     logger.info("Incoming headers for debug: %s", headers)
     return {"received_headers": list(headers.keys())}
 
-# --------------------------------------------------------------------------------------------------------
+# -------------------------
 # Discharges endpoints
-# --------------------------------------------------------------------------------------------------------
+# -------------------------
 from app.worker_batch import process_discharge_row
 
 @app.post("/discharges")
@@ -327,29 +327,16 @@ async def create_or_process_discharge(
     discharge_data.update(auto_fields)
 
     # ----------------------------------------------------
-    # ⭐ A) ORM DATA — CLEANUP FIELDS NOT IN DISCHARGE MODEL
+    # ⭐ A) ORM DATA — MUST NOT CONTAIN admission_alt_visit_id
     # ----------------------------------------------------
     discharge_data_for_db = discharge_data.copy()
 
-    for bad_field in [
-        "phone1_area",
-        "phone1_number",
-        "pid31",
-        "pid_taut",
-        "pid_ekaa",
-        "pid_eidik",
-        "pid_expiry",
-        "pid_foreas",
-        "address",
-        "city",
-        "zip",
-        "country",
-        "admission_ticket_number",
-        "visit_number",
-        "alt_visit_id",
-        "admission_alt_visit_id",
-    ]:
-        discharge_data_for_db.pop(bad_field, None)
+    discharge_data_for_db.pop("visit_number", None)
+    discharge_data_for_db.pop("admission_ticket_number", None)
+    discharge_data_for_db.pop("alt_visit_id", None)
+
+    # ⭐ REMOVE ONLY FROM ORM
+    discharge_data_for_db.pop("admission_alt_visit_id", None)
 
     # 3️⃣ Save discharge to DB
     result = await db.execute(

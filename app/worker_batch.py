@@ -18,6 +18,7 @@ if "postgresql+asyncpg://" in raw_url:
     raw_url = raw_url.replace("postgresql+asyncpg://", "postgresql://")
 elif "postgres+asyncpg://" in raw_url:
     raw_url = raw_url.replace("postgres+asyncpg://", "postgres://")
+logger.info(f"Worker DSN after cleanup: {raw_url}")
 
 
 ssl_ctx = ssl.create_default_context()

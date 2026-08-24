@@ -9,6 +9,13 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 # ---------------------------------------------------------
 raw_url = os.getenv("DATABASE_URL")
 
+# Force asyncpg driver
+if raw_url.startswith("postgres://"):
+    raw_url = raw_url.replace("postgres://", "postgresql+asyncpg://")
+
+if raw_url.startswith("postgresql://"):
+    raw_url = raw_url.replace("postgresql://", "postgresql+asyncpg://")
+
 if not raw_url:
     raise RuntimeError("❌ DATABASE_URL is missing")
 

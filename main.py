@@ -378,6 +378,9 @@ async def create_or_process_discharge(
     # ⭐ B) WORKER DATA — MUST CONTAIN admission_alt_visit_id
     # ----------------------------------------------------
     discharge_data["installation_code"] = admission.installation_code
+    if not discharge_data["installation_code"]:
+        discharge_data["installation_code"] = admission.installation_code
+
     hl7_result = await process_discharge_row(None, discharge_data)
 
     # 5️⃣ Return result to Postman

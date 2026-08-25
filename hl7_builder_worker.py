@@ -22,7 +22,8 @@ def normalize(data: dict, key: str, default: str = "") -> str:
 
 def build_hl7_admission(data: dict) -> str:
     """Build HL7 ADT^A01 from raw Neon dict."""
-    return "\r".join([
+
+    segments = [
         build_MSH(
             normalize(data, "ticket_number"),
             normalize(data, "profile_id"),
@@ -59,8 +60,22 @@ def build_hl7_admission(data: dict) -> str:
             normalize(data, "alt_visit_id"),  # ⭐ ΝΕΟ ΠΕΔΙΟ
         ),
         build_PV2(normalize(data, "admit_datetime")),
-        build_DG1(normalize(data, "icd10_code")),
-    ]) + "\r"
+    ]
+
+    # ⭐ MULTIPLE DG1 SUPPORT (correct fix)
+    diagnoses = data.get("diagnoses", [])
+    for idx, d in enumerate(diagnoses, start=1):
+        segments.append(
+            build_DG1(
+                idx,
+                normalize(d, "icd10_code"),
+                normalize(d, "icd10_desc"),
+                normalize(d, "icd10_date"),
+            )
+        )
+
+    return "\r".join(segments) + "\r"
+
 
 
 

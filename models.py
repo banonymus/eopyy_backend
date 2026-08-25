@@ -46,6 +46,7 @@ class Admission(Base):
     created_at = Column(TIMESTAMP, server_default=func.now())
     last_name2 = Column(String(100))
     first_name2 = Column(String(100))
+    pid3_type = Column(String(5))
 
 
 class Discharge(Base):

@@ -48,6 +48,7 @@ class AdmissionBase(BaseModel):
     raw_response: Optional[str] = None
     status: Optional[str] = None
     alt_visit_id: str | None = None
+    pid3_type: Optional[str] = "0"
 
     @validator("ticket_number")
     def ticket_length(cls, v):

@@ -50,15 +50,17 @@ def build_EVN(operator_id):
     now = datetime.now().strftime("%Y%m%d%H%M")
     return f"EVN|A01|{now}|||{operator_id}"
 
+#PID-------------------------------------------------------------
+#     PID
+#----------------------------------------------------------------
 
-# ---------------------------------------------------------
-# PID (32 fields)
-# ---------------------------------------------------------
 def build_PID(data):
     # PID + 31 SEQ fields = 32 fields total
     pid = ["PID"] + [""] * 31
 
-    # PID.3 – Patient Identifier List
+    # ---------------------------------------------------------
+    # PID.3 – Patient Identifier List (EOPYY-compliant)
+    # ---------------------------------------------------------
     pid[3] = "~".join([
         f"{data['pid_taut']}^^^^ΤΑΥΤΟΠΟΙΗΣΗ",
         f"{data['pid_ekaa']}^^^^ΕΚΑΑ",
@@ -67,27 +69,45 @@ def build_PID(data):
         f"{data['pid_foreas']}^^^^ΦΟΡΕΑΣ"
     ])
 
-    # PID.5 – Όνομα
-    pid[5] = f"{data['last_name']}^{data['first_name']}"
+    # ---------------------------------------------------------
+    # PID.5 – Patient Name (EOPYY-compliant)
+    # last_name ^ first_name ^ last_name2 ^ first_name2
+    # ---------------------------------------------------------
+    pid[5] = (
+        f"{data['last_name']}^"
+        f"{data['first_name']}^"
+        f"{data.get('last_name2', '')}^"
+        f"{data.get('first_name2', '')}"
+    )
 
-    # PID.7 – Ημ/νία γέννησης
+    # PID.7 – Birthdate
     pid[7] = data["dob"]
 
-    # PID.8 – Φύλο
+    # PID.8 – Sex
     pid[8] = data["sex"]
 
-    # PID.12 – Country Code (π.χ. GR)
+    # PID.12 – Country Code
     pid[12] = data["country_code"]
 
-    # PID.13 – Τηλέφωνο
-    if data["phone1_area"] and data["phone1_number"]:
+    # PID.13 – Phone (XTN)
+    if data.get("phone1_area") and data.get("phone1_number"):
         pid[13] = f"^^^^^{data['phone1_area']}^{data['phone1_number']}"
 
-    # PID.19 – ΑΜΚΑ (ΚΡΙΣΙΜΟ ΓΙΑ ΤΟ 331)
+    # PID.19 – AMKA
     pid[19] = data["amka"]
 
     # PID.31 – Identity Unknown Indicator (N/Y/E)
     pid[31] = data["pid31"]
+
+    # ---------------------------------------------------------
+    # PID.3 type (Τύπος Ταυτοποίησης) — NEW FIELD
+    # ---------------------------------------------------------
+    # We store it in PID.3.5 (identifier type)
+    # EOPYY expects it inside the PID.3 composite
+    pid3_type = data.get("pid3_type", "0")  # default AMKA
+
+    # Append type to the first identifier (ΤΑΥΤΟΠΟΙΗΣΗ)
+    pid[3] = pid[3] + f"^{pid3_type}"
 
     return "|".join(pid)
 
@@ -99,17 +119,30 @@ def build_PID(data):
 # ---------------------------------------------------------
 # NK1 (AMA + AMKA CORRECT FORMAT)
 # ---------------------------------------------------------
-def build_NK1(amka, nk1_ama, last, first):
+def build_NK1(amka, nk1_ama, last, first, pid31="N", pv2_36="N", pid3_type="0"):
     nk1 = ["NK1", "1", f"{last}^{first}"]
 
-    # pad to NK1-33
     while len(nk1) < 33:
         nk1.append("")
 
-    # correct AMA + AMKA format
-    nk1.append(f"{nk1_ama}^^^^ΑΜΑ~{amka}^^^^ΑΜΚΑ")
+    send_ama = nk1_ama and len(nk1_ama.strip()) > 0
+    send_amka = (
+        amka and len(amka.strip()) == 11 and
+        pid3_type == "0" and
+        pv2_36 == "N" and
+        pid31 == "N"
+    )
 
+    if send_ama and send_amka:
+        nk1_33 = f"{nk1_ama}^^^^ΑΜΑ~{amka}^^^^ΑΜΚΑ"
+    elif send_ama:
+        nk1_33 = f"{nk1_ama}^^^^ΑΜΑ"
+    else:
+        nk1_33 = ""
+
+    nk1.append(nk1_33)
     return "|".join(nk1)
+
 
 
 def build_PV1(location_code, doctor_code, ticket_number, admit_datetime, alt_visit_id=None):
@@ -174,19 +207,40 @@ def build_DG1(code):
 
 
 
-# ---------------------------------------------------------
-# FULL HL7 MESSAGE
-# ---------------------------------------------------------
 def build_full_hl7_message(data):
     return "\r".join([
-        build_MSH(data["ticket_number"], data["profile_id"], data["installation_code"]),
+        build_MSH(
+            data["ticket_number"],
+            data["profile_id"],
+            data["installation_code"]
+        ),
+
         build_EVN(data["operator_id"]),
+
         build_PID(data),
-        build_NK1(data["amka"], data["nk1_ama"], data["last_name"], data["first_name"]),
-        build_PV1(data["location_code"], data["doctor_amka"], data["ticket_number"], data["admit_datetime"]),
+
+        build_NK1(
+            amka=data["amka"],
+            nk1_ama=data["nk1_ama"],
+            last=data["last_name"],
+            first=data["first_name"],
+            pid31=data["pid31"],                     # dynamic
+            pv2_36="N",                              # A01 always N
+            pid3_type=data.get("pid3_type", "0")     # dynamic
+        ),
+
+        build_PV1(
+            data["location_code"],
+            data["doctor_amka"],
+            data["ticket_number"],
+            data["admit_datetime"]
+        ),
+
         build_PV2(data["admit_datetime"]),
+
         build_DG1(data["icd10_code"])
     ]) + "\r"
+
 
 # ---------------------------
 # A03 / Discharge builders

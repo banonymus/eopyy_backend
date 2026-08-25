@@ -50,7 +50,7 @@ class AdmissionBase(BaseModel):
     status: Optional[str] = None
     alt_visit_id: str | None = None
     pid3_type: Optional[str] = "0"
-    diagnoses = Column(JSON)  # ⭐ store list of DG1 diagnoses
+
 
     @validator("ticket_number")
     def ticket_length(cls, v):

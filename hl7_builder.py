@@ -125,7 +125,10 @@ def build_NK1(amka, nk1_ama, last, first, pid31="N", pv2_36="N", pid3_type="0"):
     while len(nk1) < 33:
         nk1.append("")
 
-    send_ama = nk1_ama and len(nk1_ama.strip()) > 0
+    # If AMA is missing, use AMKA as AMA (EOPYY requirement)
+    if not nk1_ama or nk1_ama.strip() == "":
+        nk1_ama = amka
+
     send_amka = (
         amka and len(amka.strip()) == 11 and
         pid3_type == "0" and
@@ -133,17 +136,14 @@ def build_NK1(amka, nk1_ama, last, first, pid31="N", pv2_36="N", pid3_type="0"):
         pid31 == "N"
     )
 
-    if send_ama and send_amka:
+    if send_amka:
         nk1_33 = f"{nk1_ama}^^^^ΑΜΑ~{amka}^^^^ΑΜΚΑ"
-    elif send_ama:
-        nk1_33 = f"{nk1_ama}^^^^ΑΜΑ"
-    elif send_amka:
-        nk1_33 = f"{amka}^^^^ΑΜΚΑ"   # ⭐ FIX: send AMKA alone
     else:
-        nk1_33 = ""
+        nk1_33 = f"{nk1_ama}^^^^ΑΜΑ"
 
     nk1.append(nk1_33)
     return "|".join(nk1)
+
 
 
 

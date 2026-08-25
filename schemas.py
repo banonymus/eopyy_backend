@@ -1,7 +1,8 @@
 # schemas.py
 from pydantic import BaseModel, validator
-from typing import Optional
+from typing import List,Optional
 from datetime import datetime
+from sqlalchemy import Column, JSON
 
 class AdmissionBase(BaseModel):
     ticket_number: Optional[str] = None
@@ -38,9 +39,9 @@ class AdmissionBase(BaseModel):
     admit_datetime: Optional[str] = None
     location_code: Optional[str] = None
 
-    icd10_code: Optional[str] = None
-    icd10_desc: Optional[str] = None
-    icd10_date: Optional[str] = None
+    #icd10_code: Optional[str] = None
+    #icd10_desc: Optional[str] = None
+    #icd10_date: Optional[str] = None
 
     nk1_ama: Optional[str] = None
 
@@ -49,6 +50,7 @@ class AdmissionBase(BaseModel):
     status: Optional[str] = None
     alt_visit_id: str | None = None
     pid3_type: Optional[str] = "0"
+    diagnoses = Column(JSON)  # ⭐ store list of DG1 diagnoses
 
     @validator("ticket_number")
     def ticket_length(cls, v):
@@ -66,9 +68,51 @@ class AdmissionBase(BaseModel):
             raise ValueError("profile_id must be exactly 20 characters")
         return v
 
-class AdmissionCreate(AdmissionBase):
-    discharge_ticket_number: str
-    pass
+class Diagnosis(BaseModel):
+    icd10_code: str
+    icd10_desc: str
+    icd10_date: str
+
+class AdmissionCreate(BaseModel):
+    ticket_number: str
+    discharge_ticket_number: Optional[str] = None
+    profile_id: str
+    installation_code: str
+    operator_id: str
+
+    last_name: str
+    first_name: str
+    last_name2: Optional[str] = ""
+    first_name2: Optional[str] = ""
+
+    country_code: str
+    phone1_area: Optional[str] = None
+    phone1_number: Optional[str] = None
+
+    amka: str
+    pid31: str
+    pid3_type: str
+
+    dob_hl7: str
+    sex_val: str
+
+    pid_taut: str
+    pid_ekaa: Optional[str] = ""
+    pid_eidik: str
+    pid_expiry: str
+    pid_foreas: str
+
+    doctor_amka: str
+    doctor_last: str
+    doctor_first: str
+
+    visit_number: str
+    admit_datetime: str
+    location_code: str
+
+    diagnoses: List[Diagnosis]   # ⭐ NEW — multiple DG1 support
+
+    nk1_ama: Optional[str] = ""
 
 class AdmissionRead(AdmissionBase):
     id: int

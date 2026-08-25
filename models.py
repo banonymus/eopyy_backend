@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, BigInteger, DateTime, Date, Float
+from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, BigInteger, DateTime, Date, Float,JSON
 from sqlalchemy.sql import func
 from sqlalchemy.orm import declarative_base
 
@@ -47,7 +47,7 @@ class Admission(Base):
     last_name2 = Column(String(100))
     first_name2 = Column(String(100))
     pid3_type = Column(String(5))
-
+    diagnoses = Column(JSON)
 
 class Discharge(Base):
     __tablename__ = "discharges"

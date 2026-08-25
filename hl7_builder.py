@@ -203,46 +203,42 @@ def build_PV2(admit_datetime):
 # ---------------------------------------------------------
 # DG1 (9 fields)
 # ---------------------------------------------------------
-def build_DG1(code):
-    return f"DG1|1||{code}^^ICD-10|||A"
+def build_DG1(index: int, code: str, desc: str, date: str) -> str:
+    return f"DG1|{index}||{code}^^ICD-10|||A"
+
 
 
 
 
 
 def build_full_hl7_message(data):
-    return "\r".join([
-        build_MSH(
-            data["ticket_number"],
-            data["profile_id"],
-            data["installation_code"]
-        ),
-
+    segments = [
+        build_MSH(data["ticket_number"], data["profile_id"], data["installation_code"]),
         build_EVN(data["operator_id"]),
-
         build_PID(data),
-
         build_NK1(
             amka=data["amka"],
             nk1_ama=data["nk1_ama"],
             last=data["last_name"],
             first=data["first_name"],
-            pid31=data["pid31"],                     # dynamic
-            pv2_36="N",                              # A01 always N
-            pid3_type=data.get("pid3_type", "0")     # dynamic
+            pid31=data["pid31"],
+            pv2_36="N",
+            pid3_type=data["pid3_type"]
         ),
-
         build_PV1(
             data["location_code"],
             data["doctor_amka"],
             data["ticket_number"],
             data["admit_datetime"]
         ),
+        build_PV2(data["admit_datetime"])
+    ]
 
-        build_PV2(data["admit_datetime"]),
+    # ⭐ Add multiple DG1 segments
+    for idx, d in enumerate(data["diagnoses"], start=1):
+        segments.append(build_DG1(idx, d["icd10_code"], d["icd10_desc"], d["icd10_date"]))
 
-        build_DG1(data["icd10_code"])
-    ]) + "\r"
+    return "\r".join(segments) + "\r"
 
 
 # ---------------------------

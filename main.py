@@ -160,30 +160,32 @@ async def create_or_upsert_admission(
         )
 
     # ----------------------------------------------------
-    # 1) SAVE admission to database (as you want)
+    # 1) PREPARE admission_dict FOR DB SAVE
     # ----------------------------------------------------
-
-    # ⭐ ADD alt_visit_id BEFORE SAVING TO NEON
     admission_dict = data.dict()
 
+    # ⭐ alt_visit_id
     ticket = int(data.ticket_number)
     admission_dict["alt_visit_id"] = str(ticket + 1)
 
-    # ⭐ ADD discharge_ticket_number (required)
+    # ⭐ ensure discharge_ticket_number exists
     admission_dict["discharge_ticket_number"] = data.discharge_ticket_number
 
+    # ⭐ NEW: convert diagnoses list to JSON
+    admission_dict["diagnoses"] = [d.dict() for d in data.diagnoses]
+
+    # ----------------------------------------------------
+    # 2) UPSERT LOGIC
+    # ----------------------------------------------------
     result = await db.execute(
         select(Admission).where(Admission.ticket_number == data.ticket_number)
     )
     existing = result.scalar_one_or_none()
 
     if existing:
-        update_data = data.dict(exclude_unset=True)
+        update_data = admission_dict
 
-        # ⭐ ensure discharge_ticket_number updates too
-        if "discharge_ticket_number" in update_data:
-            existing.discharge_ticket_number = update_data["discharge_ticket_number"]
-
+        # update all fields dynamically
         for field, value in update_data.items():
             setattr(existing, field, value)
 
@@ -200,13 +202,12 @@ async def create_or_upsert_admission(
         saved_record = adm
 
     # ----------------------------------------------------
-    # 2) CALL HL7 + SOAP (NO DB UPDATE)
+    # 3) HL7 + SOAP (NO DB UPDATE)
     # ----------------------------------------------------
-    fake_row = admission_dict
-    hl7_result = await process_admission_row(None, fake_row)
+    hl7_result = await process_admission_row(None, admission_dict)
 
     # ----------------------------------------------------
-    # 3) RETURN BOTH:
+    # 4) RETURN BOTH DB + HL7 RESULTS
     # ----------------------------------------------------
     return {
         "message": "Admission saved to database",

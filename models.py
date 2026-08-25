@@ -44,6 +44,8 @@ class Admission(Base):
     discharge_result = Column(String(16))
     raw_response_a03 = Column(Text)
     created_at = Column(TIMESTAMP, server_default=func.now())
+    last_name2 = Column(String(100))
+    first_name2 = Column(String(100))
 
 
 class Discharge(Base):

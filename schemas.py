@@ -11,6 +11,8 @@ class AdmissionBase(BaseModel):
 
     last_name: Optional[str] = None
     first_name: Optional[str] = None
+    last_name2: Optional[str] = None
+    first_name2: Optional[str] = None
     country_code: Optional[str] = None
 
     phone1_area: Optional[str] = None

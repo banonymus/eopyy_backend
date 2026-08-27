@@ -72,6 +72,11 @@ class Diagnosis(BaseModel):
     icd10_code: str
     icd10_desc: str
     icd10_date: str
+    ken_code: Optional[str] = None
+    total_amount: Optional[float] = None
+    covered_amount: Optional[float] = None
+    patient_amount: Optional[float] = None
+    patient_participation_perc: Optional[float] = None
 
 class AdmissionCreate(BaseModel):
     ticket_number: str

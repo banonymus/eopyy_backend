@@ -92,7 +92,8 @@ class Discharge(Base):
     patient_amount = Column(Float)
 
     discharge_ticket_number = Column(String)
-
+    ken_code = Column(String)  # ⭐ NEW
+    patient_participation_perc = Column(Float)  # ⭐ NEW
 
 class HL7Job(Base):
     __tablename__ = "hl7_jobs"

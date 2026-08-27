@@ -320,7 +320,9 @@ async def create_or_process_discharge(
         # ⭐ HL7 ONLY — MUST BE SENT TO WORKER
         "admission_alt_visit_id": admission.alt_visit_id,
         # ⭐ NEW FIELD — USED IN A03 HL7 BUILDER
-        "discharge_ticket_number": discharge_ticket_number
+        "discharge_ticket_number": discharge_ticket_number,
+        "diagnoses": admission.diagnoses
+
     }
 
     # Combine user input + auto-fill

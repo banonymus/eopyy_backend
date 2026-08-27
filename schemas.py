@@ -185,6 +185,8 @@ class DischargeBase(BaseModel):
     admission_ticket_number: Optional[str] = None
     ken_code: Optional[str] = None  # ⭐ NEW
     patient_participation_perc: Optional[float] = None  # ⭐ NEW
+    diagnoses: Optional[List[dict]] = None
+
 
 class DischargeCreate(DischargeBase):
     ticket_number: str

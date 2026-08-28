@@ -361,6 +361,7 @@ async def create_or_process_discharge(
         "admission_alt_visit_id",
         "nk1_last",  # ⭐ NEW
         "nk1_first",  # ⭐ NEW
+        "ekaa_pdf_base64",
     ]:
         discharge_data_for_db.pop(bad_field, None)
 

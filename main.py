@@ -174,6 +174,11 @@ async def create_or_upsert_admission(
     # ⭐ NEW: convert diagnoses list to JSON
     admission_dict["diagnoses"] = [d.dict() for d in data.diagnoses]
 
+    admission_dict["ekaa_pdf_base64"] = data.ekaa_pdf_base64
+    admission_dict["nk1_last"] = data.nk1_last
+    admission_dict["nk1_first"] = data.nk1_first
+
+
     # ----------------------------------------------------
     # 2) UPSERT LOGIC
     # ----------------------------------------------------

@@ -165,8 +165,8 @@ class DischargeBase(BaseModel):
     phone1_area: Optional[str] = None
     phone1_number: Optional[str] = None
     pid31: Optional[str] = None
-    pid_taut: Optional[str] = None
-    pid_ekaa: Optional[str] = None
+    pid_taut: Optional[str] = None      # 0 = Greek, 1 = EU
+    pid_ekaa: Optional[str] = None      # EKAA number
     pid_eidik: Optional[str] = None
     pid_expiry: Optional[str] = None
     pid_foreas: Optional[str] = None
@@ -186,6 +186,10 @@ class DischargeBase(BaseModel):
     ken_code: Optional[str] = None  # ⭐ NEW
     patient_participation_perc: Optional[float] = None  # ⭐ NEW
     diagnoses: Optional[List[dict]] = None
+    nk1_last: Optional[str] = ""  # holder last (EU indirect)
+    nk1_first: Optional[str] = ""  # holder first (EU indirect)
+
+    ekaa_pdf_base64: Optional[str] = None  # scanned EKAA card
 
 
 class DischargeCreate(DischargeBase):

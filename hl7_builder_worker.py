@@ -13,6 +13,7 @@ from hl7_builder import (
     build_EVN_A03,
     build_PID_A03,
     build_PV1_A03,
+    build_ZSG,
 )
 
 def normalize(data: dict, key: str, default: str = "") -> str:
@@ -73,6 +74,9 @@ def build_hl7_admission(data: dict) -> str:
                 normalize(d, "icd10_date"),
             )
         )
+
+    if data.get("ekaa_pdf_base64"):
+        segments.append(build_ZSG(normalize(data, "ekaa_pdf_base64")))
 
     return "\r".join(segments) + "\r"
 

@@ -296,7 +296,7 @@ async def worker_loop():
             # ---------------------------------------------------------
             country = job.get("country_code")
 
-            logger.info("worker_batch 🔍 Checking for queued jobs...")
+
 
             query = """
                 SELECT *

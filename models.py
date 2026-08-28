@@ -47,7 +47,10 @@ class Admission(Base):
     last_name2 = Column(String(100))
     first_name2 = Column(String(100))
     pid3_type = Column(String(5))
+    nk1_last = Column(String)  # NEW
+    nk1_first = Column(String)  # NEW
     diagnoses = Column(JSON)
+    ekaa_pdf_base64 = Column(Text)  # NEW — scanned EKAA
 
 class Discharge(Base):
     __tablename__ = "discharges"

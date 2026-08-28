@@ -207,6 +207,9 @@ def build_DG1(index: int, code: str, desc: str, date: str) -> str:
     return f"DG1|{index}||{code}^^ICD-10|||A"
 
 
+#-------FOR EU CITIZENS-------------------------------------------
+def build_ZSG(pdf_base64: str, filename: str = "EKAA.pdf") -> str:
+    return f"ZSG|{pdf_base64}|{filename}"
 
 
 
@@ -237,6 +240,10 @@ def build_full_hl7_message(data):
     # ⭐ Add multiple DG1 segments
     for idx, d in enumerate(data["diagnoses"], start=1):
         segments.append(build_DG1(idx, d["icd10_code"], d["icd10_desc"], d["icd10_date"]))
+
+        # ZSG for EKAA
+    if data.get("ekaa_pdf_base64"):
+        segments.append(build_ZSG(data["ekaa_pdf_base64"]))
 
     return "\r".join(segments) + "\r"
 

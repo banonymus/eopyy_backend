@@ -359,6 +359,8 @@ async def create_or_process_discharge(
         "visit_number",
         "alt_visit_id",
         "admission_alt_visit_id",
+        "nk1_last",  # ⭐ NEW
+        "nk1_first",  # ⭐ NEW
     ]:
         discharge_data_for_db.pop(bad_field, None)
 

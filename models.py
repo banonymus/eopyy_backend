@@ -98,7 +98,8 @@ class Discharge(Base):
     ken_code = Column(String)  # ⭐ NEW
     patient_participation_perc = Column(Float)  # ⭐ NEW
     diagnoses = Column(JSON)  # NEW
-
+    nk1_last = Column(String)  # ⭐ NEW
+    nk1_first = Column(String)  # ⭐ NEW
 
 class HL7Job(Base):
     __tablename__ = "hl7_jobs"

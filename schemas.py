@@ -50,6 +50,8 @@ class AdmissionBase(BaseModel):
     status: Optional[str] = None
     alt_visit_id: str | None = None
     pid3_type: Optional[str] = "0"
+    nk1_last: Optional[str] = None
+    nk1_first: Optional[str] = None
     ekaa_pdf_base64: Optional[str] = None
 
     @validator("ticket_number")
@@ -118,7 +120,11 @@ class AdmissionCreate(BaseModel):
     diagnoses: List[Diagnosis]   # ⭐ NEW — multiple DG1 support
 
     nk1_ama: Optional[str] = ""
+
+    nk1_last: Optional[str] = None
+    nk1_first: Optional[str] = None
     ekaa_pdf_base64: Optional[str] = None
+
 
 class AdmissionRead(AdmissionBase):
     id: int

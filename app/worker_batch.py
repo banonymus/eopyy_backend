@@ -296,8 +296,6 @@ async def worker_loop():
             # ---------------------------------------------------------
             country = job.get("country_code")
 
-
-
             query = """
                 SELECT *
                 FROM discharges
@@ -316,19 +314,62 @@ async def worker_loop():
             discharges = [dict(r) for r in rows]
 
             # ---------------------------------------------------------
-            # DYNAMIC Z03 TOTALS
+            # SANITIZE DISCHARGES (PREVENT CRASHES)
+            # ---------------------------------------------------------
+            cleaned = []
+            for r in discharges:
+
+                # Skip discharges with no diagnoses
+                if r.get("diagnoses") is None:
+                    logger.warning(f"Skipping discharge {r['ticket_number']} because diagnoses is NULL")
+                    continue
+
+                # Fix missing discharge_ticket_number
+                if r.get("discharge_ticket_number") is None:
+                    r["discharge_ticket_number"] = r["ticket_number"]
+
+                # Fix missing alt_visit_id
+                if r.get("alt_visit_id") is None:
+                    r["alt_visit_id"] = r["ticket_number"]
+
+                # Fix missing dob_hl7
+                if r.get("dob_hl7") is None:
+                    r["dob_hl7"] = "19000101"
+
+                cleaned.append(r)
+
+            discharges = cleaned
+
+            if not discharges:
+                logger.warning("No valid discharges found for job — marking job completed with empty file.")
+                empty_path = f"/tmp/{job_id}.hl7"
+                with open(empty_path, "w") as f:
+                    f.write("NO VALID DISCHARGES\n")
+
+                await conn.execute("""
+                    UPDATE hl7_jobs
+                    SET status = 'completed',
+                        file_data = $1,
+                        result_file = $2,
+                        updated_at = $3
+                    WHERE job_id = $4
+                """, "NO VALID DISCHARGES", empty_path, datetime.datetime.utcnow(), job_id)
+
+                await conn.close()
+                continue
+
+            # ---------------------------------------------------------
+            # DYNAMIC Z03 TOTALS FROM DIAGNOSES JSON
             # ---------------------------------------------------------
             total_amount = 0
             covered_amount = 0
             patient_amount = 0
 
             for r in discharges:
-                diags = r.get("diagnoses") or []
-                for d in diags:
+                for d in r["diagnoses"]:
                     total_amount += float(d.get("total_amount", 0) or 0)
                     covered_amount += float(d.get("covered_amount", 0) or 0)
                     patient_amount += float(d.get("patient_amount", 0) or 0)
-
 
             # ---------------------------------------------------------
             # GENERATE HL7 FILE

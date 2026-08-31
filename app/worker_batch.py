@@ -245,7 +245,7 @@ async def process_discharge_row(pool, row):
         }
 
 # ---------------------------------------------------------
-# WORKER LOOP (pure asyncpg)
+# WORKER LOOP (pure asyncpg) INVOICES MONTHLY
 # ---------------------------------------------------------
 async def worker_loop():
     logger.info("worker_batch 🚀 HL7 Worker started")
@@ -318,9 +318,17 @@ async def worker_loop():
             # ---------------------------------------------------------
             # DYNAMIC Z03 TOTALS
             # ---------------------------------------------------------
-            total_amount = sum(r.get("amount_total", 0) for r in discharges)
-            covered_amount = sum(r.get("amount_covered", 0) for r in discharges)
-            patient_amount = sum(r.get("amount_patient", 0) for r in discharges)
+            total_amount = 0
+            covered_amount = 0
+            patient_amount = 0
+
+            for r in discharges:
+                diags = r.get("diagnoses") or []
+                for d in diags:
+                    total_amount += float(d.get("total_amount", 0) or 0)
+                    covered_amount += float(d.get("covered_amount", 0) or 0)
+                    patient_amount += float(d.get("patient_amount", 0) or 0)
+
 
             # ---------------------------------------------------------
             # GENERATE HL7 FILE

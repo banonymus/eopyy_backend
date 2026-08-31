@@ -88,7 +88,7 @@ async def generate_hl7_file(
                 f"MSH|^~\\&|||||||ZHC^Z04^ZHC_Z04|{msg_id}|P|2.6\n"
             )
 
-            # PSG  (FIXED: alt_visit_id must be present)
+            # PSG
             await f.write(
                 f"PSG|{safe(r['ticket_number'])}|"
                 f"{fmt(r['discharge_datetime'])}|"
@@ -96,7 +96,7 @@ async def generate_hl7_file(
                 f"{fmt(r['discharge_datetime'])}||Y||1\n"
             )
 
-            # ZSG (FIXED: alt_visit_id must be present)
+            # ZSG
             await f.write(
                 f"ZSG|||||||0|||||||{safe(r['country_code'])}|||||"
                 f"{safe(r['ticket_number'])}|{safe(r['alt_visit_id'])}|0\n"
@@ -120,33 +120,62 @@ async def generate_hl7_file(
             # PV2
             await f.write("PV2||||||||||||||||||||||||||||||||||||||||||U\n")
 
-            # DG1
-            await f.write(
-                f"DG1|1|ICD-10|{safe(r['icd10_code'])}|"
-                f"{safe(r['icd10_desc'])}||D\n"
-            )
+            # ============================================================
+            # MULTI-DIAGNOSIS: DG1 + ZKE + PSL + ZSL
+            # ============================================================
+            diags = r.get("diagnoses") or []
 
-            # PSL
-            await f.write(
-                f"PSL|||1||||6^Ο16Α|6||"
-                f"{fmt(r['discharge_datetime'])}|{fmt(r['discharge_datetime'])}|"
-                f"0.0|||396.10|277.27|||||NO|||||||||\n"
-            )
+            if not diags:
+                # fallback to single icd10_* fields if diagnoses is empty
+                await f.write(
+                    f"DG1|1|ICD-10|{safe(r['icd10_code'])}|"
+                    f"{safe(r['icd10_desc'])}||D\n"
+                )
+                # PSL/ZSL fallback (keep your old hardcoded values if you want)
+                await f.write(
+                    f"PSL|||1||||6^{safe(r.get('ken_code', ''))}|6||"
+                    f"{fmt(r['discharge_datetime'])}|{fmt(r['discharge_datetime'])}|"
+                    f"0.0|||{safe(r.get('total_amount', 0))}|{safe(r.get('covered_amount', 0))}|||||NO|||||||||\n"
+                )
+                await f.write(
+                    f"ZSL|||||1|1|100.00|{safe(r.get('total_amount', 0))}|"
+                    f"{safe(r.get('patient_participation_perc', 0))}|"
+                    f"{safe(r.get('patient_amount', 0))}|0.00||0|0|0.00|0.00|0|\n"
+                )
+            else:
+                for i, d in enumerate(diags, start=1):
+                    icd10_code = safe(d.get("icd10_code"))
+                    icd10_desc = safe(d.get("icd10_desc"))
+                    icd10_date = safe(d.get("icd10_date"))
+                    ken_code = safe(d.get("ken_code"))
+                    total = float(d.get("total_amount", 0) or 0)
+                    covered = float(d.get("covered_amount", 0) or 0)
+                    patient = float(d.get("patient_amount", 0) or 0)
+                    perc = float(d.get("patient_participation_perc", 0) or 0)
 
-            # ZSL
-            await f.write(
-                f"ZSL|||||1|1|100.00|396.10|30.00|118.83|0.00||0|0|0.00|0.00|0|\n"
-            )
+                    # DG1 per diagnosis
+                    await f.write(
+                        f"DG1|{i}|ICD-10|{icd10_code}|{icd10_desc}||D\n"
+                    )
+
+                    # ZKE per diagnosis (KEN + financials)
+                    await f.write(
+                        f"ZKE|{ken_code}|{total:.2f}|{covered:.2f}|{patient:.2f}|{perc:.2f}\n"
+                    )
+
+                    # PSL per diagnosis (KEN + amounts)
+                    await f.write(
+                        f"PSL|||{i}||||6^{ken_code}|6||"
+                        f"{fmt(r['discharge_datetime'])}|{fmt(r['discharge_datetime'])}|"
+                        f"0.0|||{total:.2f}|{covered:.2f}|||||NO|||||||||\n"
+                    )
+
+                    # ZSL per diagnosis (participation + patient amount)
+                    await f.write(
+                        f"ZSL|||||{i}|{i}|100.00|{total:.2f}|{perc:.2f}|{patient:.2f}|0.00||0|0|0.00|0.00|0|\n"
+                    )
 
             # BTS for this Z04 block
             await f.write("BTS|1\n")
-
-        # ============================================================
-        # FINAL BTS (FIXED: must reflect number of Z04 blocks)
-        # ============================================================
-        await f.write(f"BTS|{len(discharges)}\n")
-
-        # END OF FILE
-        await f.write("FHS|^~\\&||||||||||\n")
 
     return out_path

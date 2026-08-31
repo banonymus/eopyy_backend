@@ -247,6 +247,8 @@ async def process_discharge_row(pool, row):
 # ---------------------------------------------------------
 # WORKER LOOP (pure asyncpg) INVOICES MONTHLY
 # ---------------------------------------------------------
+import json
+
 async def worker_loop():
     logger.info("worker_batch 🚀 HL7 Worker started")
 
@@ -319,8 +321,15 @@ async def worker_loop():
             cleaned = []
             for r in discharges:
 
-                # Skip discharges with no diagnoses
-                if r.get("diagnoses") is None:
+                # Convert diagnoses TEXT → JSON list
+                diags_raw = r.get("diagnoses")
+                if isinstance(diags_raw, str):
+                    try:
+                        r["diagnoses"] = json.loads(diags_raw)
+                    except Exception:
+                        logger.error(f"Invalid diagnoses JSON for discharge {r['ticket_number']}")
+                        r["diagnoses"] = []
+                elif diags_raw is None:
                     logger.warning(f"Skipping discharge {r['ticket_number']} because diagnoses is NULL")
                     continue
 

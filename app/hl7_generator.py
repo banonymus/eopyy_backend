@@ -31,8 +31,14 @@ async def generate_hl7_file(
     job_installation_code,
     total_amount,
     covered_amount,
-    patient_amount
+    patient_amount,
+    invoice_number,
+    contract_number,
+    installation_descr,
+    payer_taxid,
+    payer_doy
 ):
+
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
 
     async with aiofiles.open(out_path, "w", encoding="utf-8") as f:
@@ -65,11 +71,11 @@ async def generate_hl7_file(
 
         # DYNAMIC IVC
         await f.write(
-            f"IVC|ΤΠΥ-000003||423474|OR|NORM|FS|20260316|||"
-            f"ΙΔΙΩΤΙΚΗ Μ.Η.Ν. ΚΕΝΤΡΟ ΟΡΑΣΗΣ ΗΠΕΙΡΟΥ Α.Ε.^^^^^^^^^{safe(job_installation_code)}|"
+            f"IVC|{invoice_number}||{contract_number}|OR|NORM|FS|20260316|||"
+            f"{installation_descr}^^^^^^^^^{safe(job_installation_code)}|"
             f"ΕΟΠΥΥ||||||||||"
             f"{total_amount:.2f}|{covered_amount:.2f}|{patient_amount:.2f}"
-            f"||||997489660 6311\n"
+            f"||||{payer_taxid} {payer_doy}\n"
         )
 
         await f.write("BTS|1\n")

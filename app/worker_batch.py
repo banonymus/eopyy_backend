@@ -244,11 +244,6 @@ async def process_discharge_row(pool, row):
             "error": str(e),
         }
 
-# ---------------------------------------------------------
-# WORKER LOOP (pure asyncpg) INVOICES MONTHLY
-# ---------------------------------------------------------
-import json
-
 import json
 
 async def worker_loop():
@@ -409,6 +404,15 @@ async def worker_loop():
                     patient_amount += d["patient_amount"]
 
             # ---------------------------------------------------------
+            # READ INVOICE FIELDS FROM JOB
+            # ---------------------------------------------------------
+            invoice_number = job["invoice_number"]
+            contract_number = job["contract_number"]
+            installation_descr = job["installation_descr"]
+            payer_taxid = job["payer_taxid"]
+            payer_doy = job["payer_doy"]
+
+            # ---------------------------------------------------------
             # GENERATE HL7 FILE
             # ---------------------------------------------------------
             out_path = f"/tmp/{job_id}.hl7"
@@ -420,7 +424,12 @@ async def worker_loop():
                 job["installation_code"],
                 total_amount,
                 covered_amount,
-                patient_amount
+                patient_amount,
+                invoice_number,
+                contract_number,
+                installation_descr,
+                payer_taxid,
+                payer_doy
             )
 
             with open(out_path, "r", encoding="utf-8") as f:

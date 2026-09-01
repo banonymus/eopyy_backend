@@ -36,7 +36,8 @@ async def generate_hl7_file(
     contract_number,
     installation_descr,
     payer_taxid,
-    payer_doy
+    payer_doy,
+    country_code
 ):
 
     os.makedirs(os.path.dirname(out_path), exist_ok=True)

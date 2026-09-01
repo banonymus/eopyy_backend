@@ -406,6 +406,7 @@ async def worker_loop():
             # ---------------------------------------------------------
             # READ INVOICE FIELDS FROM JOB
             # ---------------------------------------------------------
+            country = job["country_code"]
             invoice_number = job["invoice_number"]
             contract_number = job["contract_number"]
             installation_descr = job["installation_descr"]
@@ -429,7 +430,8 @@ async def worker_loop():
                 contract_number,
                 installation_descr,
                 payer_taxid,
-                payer_doy
+                payer_doy,
+                country
             )
 
             with open(out_path, "r", encoding="utf-8") as f:

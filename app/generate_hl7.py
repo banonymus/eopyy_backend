@@ -12,6 +12,7 @@ async def generate_hl7(
     from_date: str,
     to_date: str,
     installation_code: str,
+    country_code: str,
     invoice_number: str,
     contract_number: str,
     installation_descr: str,
@@ -19,7 +20,7 @@ async def generate_hl7(
     payer_doy: str,
     db: AsyncSession = Depends(get_session)
 ):
-    job_id = f"hl7_discharges_{installation_code}_{from_date}_{to_date}"
+    job_id = f"hl7_discharges_{installation_code}_{from_date}_{to_date}_{country_code}"
 
     # Check if job already exists
     result = await db.execute(select(HL7Job).where(HL7Job.job_id == job_id))
@@ -37,6 +38,7 @@ async def generate_hl7(
         from_date=datetime.strptime(from_date, "%Y-%m-%d"),
         to_date=datetime.strptime(to_date, "%Y-%m-%d"),
         installation_code=installation_code,
+        country_code=country_code,
         invoice_number=invoice_number,
         contract_number=contract_number,
         installation_descr=installation_descr,

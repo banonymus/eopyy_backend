@@ -254,7 +254,8 @@ async def worker_loop():
             # ---------------------------------------------------------
             # CONNECT TO NEON
             # ---------------------------------------------------------
-            conn = await asyncpg.connect(raw_url, ssl=ssl_ctx)
+            #conn = await asyncpg.connect(raw_url, ssl=ssl_ctx)
+            conn = await asyncpg.connect(raw_url, ssl=ssl_ctx, statement_cache_size=0)
 
             # ---------------------------------------------------------
             # FETCH NEXT QUEUED JOB

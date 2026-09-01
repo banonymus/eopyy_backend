@@ -20,7 +20,8 @@ async def generate_hl7(
     payer_doy: str,
     db: AsyncSession = Depends(get_session)
 ):
-    job_id = f"hl7_discharges_{installation_code}_{from_date}_{to_date}_{country_code}"
+    job_id = f"hl7_discharges_{installation_code}_{country_code}_{from_date}_{to_date}"
+
 
     # Check if job already exists
     result = await db.execute(select(HL7Job).where(HL7Job.job_id == job_id))

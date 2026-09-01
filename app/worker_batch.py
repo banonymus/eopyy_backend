@@ -249,6 +249,8 @@ async def process_discharge_row(pool, row):
 # ---------------------------------------------------------
 import json
 
+import json
+
 async def worker_loop():
     logger.info("worker_batch 🚀 HL7 Worker started")
 
@@ -368,7 +370,33 @@ async def worker_loop():
                 continue
 
             # ---------------------------------------------------------
-            # DYNAMIC Z03 TOTALS FROM DIAGNOSES JSON
+            # MERGE DIAGNOSES WITH SAME ICD-10 + SAME KEN
+            # ---------------------------------------------------------
+            for r in discharges:
+                merged = {}
+                for d in r["diagnoses"]:
+                    key = (d["icd10_code"], d["ken_code"])
+
+                    if key not in merged:
+                        merged[key] = {
+                            "icd10_code": d["icd10_code"],
+                            "icd10_desc": d["icd10_desc"],
+                            "icd10_date": d["icd10_date"],
+                            "ken_code": d["ken_code"],
+                            "total_amount": float(d.get("total_amount", 0) or 0),
+                            "covered_amount": float(d.get("covered_amount", 0) or 0),
+                            "patient_amount": float(d.get("patient_amount", 0) or 0),
+                            "patient_participation_perc": float(d.get("patient_participation_perc", 0) or 0)
+                        }
+                    else:
+                        merged[key]["total_amount"] += float(d.get("total_amount", 0) or 0)
+                        merged[key]["covered_amount"] += float(d.get("covered_amount", 0) or 0)
+                        merged[key]["patient_amount"] += float(d.get("patient_amount", 0) or 0)
+
+                r["diagnoses"] = list(merged.values())
+
+            # ---------------------------------------------------------
+            # Z03 TOTALS AFTER MERGING
             # ---------------------------------------------------------
             total_amount = 0
             covered_amount = 0
@@ -376,9 +404,9 @@ async def worker_loop():
 
             for r in discharges:
                 for d in r["diagnoses"]:
-                    total_amount += float(d.get("total_amount", 0) or 0)
-                    covered_amount += float(d.get("covered_amount", 0) or 0)
-                    patient_amount += float(d.get("patient_amount", 0) or 0)
+                    total_amount += d["total_amount"]
+                    covered_amount += d["covered_amount"]
+                    patient_amount += d["patient_amount"]
 
             # ---------------------------------------------------------
             # GENERATE HL7 FILE

@@ -134,7 +134,7 @@ class AdmissionRead(AdmissionBase):
     discharge_datetime: Optional[str] = None
     discharge_result: Optional[str] = None
     raw_response_a03: Optional[str] = None
-    discharge_ticket_number: str
+
     class Config:
         orm_mode = True
 
@@ -142,7 +142,7 @@ class AdmissionUpdate(BaseModel):
     discharge_datetime: Optional[str] = None
     discharge_result: Optional[str] = None
     raw_response_a03: Optional[str] = None
-    discharge_ticket_number: str | None = None
+
 
 from pydantic import BaseModel
 from typing import Optional

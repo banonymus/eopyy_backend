@@ -112,11 +112,11 @@ class HL7Job(Base):
     file_data = Column(Text, nullable=True)       # <-- NEW COLUMN
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
-    installation_code = Column(String, nullable=True)
-    country_code = Column(String)
-    invoice_number = Column(String)
-    contract_number = Column(String)
-    installation_descr = Column(String)
-    payer_taxid = Column(String)
-    payer_doy = Column(String)
+    installation_code = Column(String, nullable=False)
+    country_code = Column(String, nullable=False)
+    invoice_number = Column(String, nullable=False)
+    contract_number = Column(String, nullable=False)
+    installation_descr = Column(String, nullable=False)
+    payer_taxid = Column(String, nullable=False)
+    payer_doy = Column(String, nullable=False)
 

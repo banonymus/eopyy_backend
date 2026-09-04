@@ -53,6 +53,7 @@ class AdmissionBase(BaseModel):
     nk1_last: Optional[str] = None
     nk1_first: Optional[str] = None
     ekaa_pdf_base64: Optional[str] = None
+    discharge_ticket_number: str | None = None
 
     @validator("ticket_number")
     def ticket_length(cls, v):
@@ -141,7 +142,7 @@ class AdmissionUpdate(BaseModel):
     discharge_datetime: Optional[str] = None
     discharge_result: Optional[str] = None
     raw_response_a03: Optional[str] = None
-
+    discharge_ticket_number: str | None = None
 
 from pydantic import BaseModel
 from typing import Optional

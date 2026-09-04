@@ -304,6 +304,16 @@ async def create_or_process_discharge(
     # ⭐ READ discharge_ticket_number FROM ADMISSION
     discharge_ticket_number = admission.discharge_ticket_number
 
+    # ⭐ CORRECTION LOGIC — DISCHARGE CALL OVERRIDES ADMISSION VALUE
+    if data.discharge_ticket_number and data.discharge_ticket_number != discharge_ticket_number:
+        # Update admission table with the correct discharge_ticket_number
+        admission.discharge_ticket_number = data.discharge_ticket_number
+        await db.commit()
+        await db.refresh(admission)
+
+        # Use the corrected value for HL7 + discharge creation
+        discharge_ticket_number = data.discharge_ticket_number
+
     # 2️⃣ Auto-fill discharge fields from admission
     auto_fields = {
         "profile_id": admission.profile_id,

@@ -134,6 +134,7 @@ class AdmissionRead(AdmissionBase):
     discharge_datetime: Optional[str] = None
     discharge_result: Optional[str] = None
     raw_response_a03: Optional[str] = None
+    discharge_ticket_number: Optional[str] = None
 
     class Config:
         orm_mode = True

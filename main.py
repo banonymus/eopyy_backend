@@ -5,7 +5,7 @@ import logging
 import datetime
 from typing import Optional, List
 
-from fastapi import FastAPI, Depends, HTTPException, Request, status,Response
+from fastapi import FastAPI, Depends, HTTPException, Request, status,Response, Query
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -816,7 +816,18 @@ async def monitoring_index():
 
 
 @app.get("/generate-hl7")
-async def generate_hl7(from_date: str, to_date: str, installation_code: str):
+async def generate_hl7(
+    from_date: str = Query(..., description="Start date YYYY-MM-DD"),
+    to_date: str = Query(..., description="End date YYYY-MM-DD"),
+    installation_code: str = Query(..., description="Clinic installation code"),
+    country_code: str = Query(..., description="GR or **"),
+    invoice_number: str = Query(..., description="Invoice number e.g. ΤΠΥ-000003"),
+    contract_number: str = Query(..., description="EOPYY contract number"),
+    installation_descr: str = Query(..., description="Clinic legal name"),
+    payer_taxid: str = Query(..., description="Payer tax ID (9 digits)"),
+    payer_doy: str = Query(..., description="Payer DOY (4 digits)"),
+    db: AsyncSession = Depends(get_session)
+):
     job_id = f"hl7_discharges_{installation_code}_{from_date}_{to_date}"
 
     async with async_session() as db:

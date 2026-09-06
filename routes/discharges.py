@@ -133,3 +133,22 @@ async def create_or_process_discharge(
         "hl7_raw_response": hl7_result["raw_response"],
         "hl7_error": hl7_result["error"]
     }
+
+
+
+#-------------------------Cancel Acceptance--------------------
+
+#--------------------------------------------------------------
+
+from schemas import CancelDischargeRequest
+from hl7_builder import build_a13
+from discarge_eopyy_client import submit_cancel_discharge_hl7
+
+
+@router.post("/cancel-discharge")
+async def cancel_discharge(req: CancelDischargeRequest):
+    hl7_msg = build_a13(req)
+    response = submit_cancel_discharge_hl7(hl7_msg)
+    return {"hl7": hl7_msg, "response": response}
+
+

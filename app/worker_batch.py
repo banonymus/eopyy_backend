@@ -77,7 +77,8 @@ async def process_admission_row(pool, row):
         hl7 = build_hl7_message(data)
 
         # 2. Send SOAP
-        installation_code = row.installation_code
+        installation_code = row["installation_code"]
+
 
         username, password = INSTALLATION_CREDENTIALS[str(installation_code)]
 

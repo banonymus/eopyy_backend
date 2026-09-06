@@ -235,7 +235,8 @@ async def process_discharge_row(pool, row):
         #logging.info("FINAL HL7 DISCHARGE STRING: %s", repr(hl7))
 
         # 2. Send SOAP
-        installation_code = row.installation_code
+        installation_code = row["installation_code"]
+
 
         username, password = INSTALLATION_CREDENTIALS[str(installation_code)]
 

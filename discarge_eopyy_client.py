@@ -1,4 +1,4 @@
-def submit_discarge_hl7(hl7_message):
+def submit_discarge_hl7(hl7_message, username, password):
     try:
         import ssl, re
         from requests import Session
@@ -7,8 +7,8 @@ def submit_discarge_hl7(hl7_message):
         from lxml import etree
 
         SOAP_URL = "https://eservices.eopyy.gov.gr/hospitalisationWSS_UGn_EU-hospitalisationWSS_UGn_EU-context-root/MainWSClassPort"
-        USERNAME = "wsepirus2026"
-        PASSWORD = "Wsepirus@@2026"
+        USERNAME = username
+        PASSWORD = password
 
         class _TLS12Adapter(HTTPAdapter):
             def init_poolmanager(self, connections, maxsize, block=False, **pool_kwargs):

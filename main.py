@@ -209,6 +209,9 @@ async def create_or_upsert_admission(
     # ----------------------------------------------------
     # 3) HL7 + SOAP (NO DB UPDATE)
     # ----------------------------------------------------
+
+
+
     hl7_result = await process_admission_row(None, admission_dict)
 
     # ----------------------------------------------------

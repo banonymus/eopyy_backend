@@ -209,7 +209,11 @@ async def process_discharge_row(pool, row):
         hl7 = build_hl7_discharge(data)
 
         # 2. Send SOAP (same endpoint as A03)
-        raw_response = submit_hl7(hl7,"A03")
+
+        installation_code = row["installation_code"]
+        username, password = INSTALLATION_CREDENTIALS[str(installation_code)]
+
+        raw_response = submit_hl7(hl7,"A03",username,password)
 
         # 3. Parse ACK
         msa_code, message_id, err = parse_hl7_response(raw_response)

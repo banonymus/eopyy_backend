@@ -173,7 +173,11 @@ async def process_admission_row(pool, row):
         hl7 = build_hl7_message(data)
 
         # 2. Send SOAP
-        raw_response = submit_hl7(hl7, "A01")
+        installation_code = row["installation_code"]
+
+        username, password = INSTALLATION_CREDENTIALS[str(installation_code)]
+
+        raw_response = submit_hl7(hl7, "A01",username,password)
 
         # 3. Parse ACK
         msa_code, message_id, err = parse_hl7_response(raw_response)

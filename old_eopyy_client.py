@@ -5,8 +5,8 @@ from urllib3.util.ssl_ import create_urllib3_context
 from lxml import etree
 
 SOAP_URL = "https://eservices.eopyy.gov.gr/hospitalisationWSS_UGn_EU-hospitalisationWSS_UGn_EU-context-root/MainWSClassPort"
-USERNAME = "wsepirus2026"
-PASSWORD = "Wsepirus@@2026"
+#USERNAME = "wsepirus2026"
+#PASSWORD = "Wsepirus@@2026"
 
 class EOPYY_TLS12_Adapter(HTTPAdapter):
     def init_poolmanager(self, *args, **kwargs):
@@ -22,7 +22,7 @@ class EOPYY_TLS12_Adapter(HTTPAdapter):
         kwargs["ssl_context"] = ctx
         return super().init_poolmanager(*args, **kwargs)
 
-def submit_hl7(hl7_message, message_type):
+def submit_hl7(hl7_message, message_type,username,password):
     try:
         hl7_message = hl7_message.replace("\r\n", "\r").replace("\n", "\r")
         hl7_cdata = etree.CDATA(hl7_message)
@@ -41,11 +41,13 @@ def submit_hl7(hl7_message, message_type):
         token = etree.SubElement(security, "{http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd}UsernameToken")
 
         user = etree.SubElement(token, "{http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd}Username")
-        user.text = USERNAME
+        #user.text = USERNAME
+        user.text = username
 
         pwd = etree.SubElement(token, "{http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd}Password")
         pwd.set("Type", "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordText")
-        pwd.text = PASSWORD
+        #pwd.text = PASSWORD
+        pwd.text = password
 
         body = etree.SubElement(envelope, "{http://schemas.xmlsoap.org/soap/envelope/}Body")
 

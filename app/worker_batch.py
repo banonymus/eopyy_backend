@@ -6,6 +6,8 @@ import asyncpg
 import datetime
 from app.hl7_generator import generate_hl7_file
 from hl7_builder_worker import build_hl7_discharge
+from config import INSTALLATION_CREDENTIALS
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("hl7-worker")
@@ -75,7 +77,11 @@ async def process_admission_row(pool, row):
         hl7 = build_hl7_message(data)
 
         # 2. Send SOAP
-        raw_response = submit_hl7(hl7,"A01")
+        installation_code = row.installation_code
+
+        username, password = INSTALLATION_CREDENTIALS[str(installation_code)]
+
+        raw_response = submit_hl7(hl7,"A01",username,password)
 
         # 3. Parse ACK
         msa_code, message_id, err = parse_hl7_response(raw_response)

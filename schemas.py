@@ -1,5 +1,5 @@
 # schemas.py
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, validator,Field
 from typing import List,Optional
 from datetime import datetime
 from sqlalchemy import Column, JSON
@@ -213,3 +213,16 @@ class DischargeRead(DischargeBase):
 
     class Config:
         orm_mode = True
+
+class CancelDischargeRequest(BaseModel):
+    # MSH
+    discharge_number: str = Field(..., min_length=13, max_length=13)
+    certification_code: str = Field(..., min_length=20, max_length=20)
+    installation_code: str
+
+    # EVN
+    evn_timestamp: str  # e.g. "201310101122"
+    operator_id: str    # e.g. "usertest1"
+
+    # PV1
+    visit_number: str = Field(..., min_length=13, max_length=13)

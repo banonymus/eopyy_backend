@@ -348,3 +348,53 @@ def build_full_hl7_message_A03(data):
         )
     ]) + "\r"
 
+
+
+#----------------------Cancel Acceptance--------------------------------
+
+#-----------------------------------------------------------------------
+
+from datetime import datetime
+from schemas import CancelDischargeRequest
+
+def build_msh_a13(req: CancelDischargeRequest) -> str:
+    # Example: "201310111112"
+    ts = datetime.now().strftime("%Y%m%d%H%M")
+
+    msh = [
+        "MSH",
+        "|",
+        "^~\\&",
+        "|", "|", "|", "|",
+        ts,
+        "|",
+        "ADT^A13^ADT_A13",
+        req.discharge_number,
+        "P",
+        "2.6",
+        "|", "|", "|", "|", "|", "|", "|",
+        req.certification_code,
+        f"^^^^^^^^^{req.installation_code}",
+    ]
+    return "|".join(msh)
+
+def build_evn_a13(req: CancelDischargeRequest) -> str:
+    return f"EVN|A13|{req.evn_timestamp}|||{req.operator_id}"
+
+def build_pid_a13() -> str:
+    return "PID||"
+
+def build_pv1_a13(req: CancelDischargeRequest) -> str:
+    return (
+        f"PV1||I|||||||||||||||||{req.visit_number}"
+        f"|||||||||||||||||||||||||||||||{req.discharge_number}"
+    )
+
+def build_a13(req: CancelDischargeRequest) -> str:
+    segments = [
+        build_msh_a13(req),
+        build_evn_a13(req),
+        build_pid_a13(),
+        build_pv1_a13(req),
+    ]
+    return "\r".join(segments)

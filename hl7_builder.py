@@ -355,7 +355,7 @@ def build_full_hl7_message_A03(data):
 #-----------------------------------------------------------------------
 
 from datetime import datetime
-from .schemas import CancelDischargeRequest
+from schemas import CancelDischargeRequest
 
 def build_msh_a13(req: CancelDischargeRequest) -> str:
     # Example: "201310111112"

@@ -12,6 +12,8 @@ jinja2
 lxml
 httpx
 aiofiles
+sqlalchemy[asyncio]
+greenlet
 
 
 

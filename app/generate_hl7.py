@@ -18,7 +18,7 @@ async def generate_hl7(
     installation_descr: str,
     payer_taxid: str,
     payer_doy: str,
-    invoice_date :str,
+    invoice_date: str,
     db: AsyncSession = Depends(get_session)
 ):
     job_id = f"hl7_discharges_{installation_code}_{country_code}_{from_date}_{to_date}"

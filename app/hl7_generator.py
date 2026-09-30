@@ -188,8 +188,8 @@ async def generate_hl7_file(
 
 
 
-        # FINAL BTS (ONLY ONCE)
-        final_total = sum(float(r.get("total_amount", 0) or 0) for r in discharges)
-        await f.write(f"BTS|{len(discharges)}||{final_total:.2f}\n")
+    # FINAL BTS (ONLY ONCE)
+    final_total = sum(float(r.get("total_amount", 0) or 0) for r in discharges)
+    await f.write(f"BTS|{len(discharges)}||{final_total:.2f}\n")
 
     return out_path

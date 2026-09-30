@@ -131,7 +131,7 @@ async def generate_hl7_file(
             # MULTI-DIAGNOSIS: DG1 + ZKE + PSL + ZSL
             # ============================================================
             diags = r.get("diagnoses") or []
-
+            block_total = 0.0
             if not diags:
                 # fallback to single icd10_* fields if diagnoses is empty
                 await f.write(
@@ -149,9 +149,9 @@ async def generate_hl7_file(
                     f"{safe(r.get('patient_participation_perc', 0))}|"
                     f"{safe(r.get('patient_amount', 0))}|0.00||0|0|0.00|0.00|0|\n"
                 )
-                block_total = total
+                #block_total = total
             else:
-                block_total = 0.0
+
                 for i, d in enumerate(diags, start=1):
                     icd10_code = safe(d.get("icd10_code"))
                     icd10_desc = safe(d.get("icd10_desc"))

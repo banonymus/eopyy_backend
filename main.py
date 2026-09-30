@@ -882,6 +882,7 @@ async def job_status(job_id: str):
         "job_id": job.job_id,
         "status": job.status,
         "updated_at": job.updated_at,
+        "invoice_date": job.invoice_date,
         "download": f"/download/{job_id}" if job.file_data else None
     }
 

@@ -843,6 +843,12 @@ async def generate_hl7(
     invoice_date: str = Query(..., description="Invoice date YYYY-MM-DD"),
     db: AsyncSession = Depends(get_session)
 ):
+    # Validate invoice_date format
+    try:
+        invoice_date_obj = datetime.date.fromisoformat(invoice_date)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="invoice_date must be YYYY-MM-DD")
+
     job_id = f"hl7_discharges_{installation_code}_{from_date}_{to_date}"
 
     async with async_session() as db:

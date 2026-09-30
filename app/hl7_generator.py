@@ -112,7 +112,7 @@ async def generate_hl7_file(
 
             # PID
             await f.write(
-                f"PID||{safe(r['profile_id'])}|{safe(r['amka'])}^^^^ΑΜΑ~"
+                f"PID||{safe(r['ticket_number'])}|{safe(r['amka'])}^^^^ΑΜΑ~"
                 f"{safe(r['installation_code'])}^^^^ΦΟΡΕΑΣ||"
                 f"{safe(r['last_name'])}^{safe(r['first_name'])}^ΑΓΝΩΣΤΟ||"
                 f"{safe(r['dob_hl7'])}|{safe(r['sex_val'])}|||"

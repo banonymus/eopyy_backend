@@ -37,7 +37,8 @@ async def generate_hl7_file(
     installation_descr,
     payer_taxid,
     payer_doy,
-    country_code
+    country_code,
+    invoice_date
 ):
 
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
@@ -72,7 +73,7 @@ async def generate_hl7_file(
 
         # DYNAMIC IVC
         await f.write(
-            f"IVC|{invoice_number}||{contract_number}|OR|NORM|FS|20260316|||"
+            f"IVC|{invoice_number}||{contract_number}|OR|NORM|FS|{invoice_date}|||"
             f"{installation_descr}^^^^^^^^^{safe(job_installation_code)}|"
             f"ΕΟΠΥΥ||||||||||"
             f"{total_amount:.2f}|{covered_amount:.2f}|{patient_amount:.2f}"

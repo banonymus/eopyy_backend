@@ -429,7 +429,7 @@ async def worker_loop():
             installation_descr = job["installation_descr"]
             payer_taxid = job["payer_taxid"]
             payer_doy = job["payer_doy"]
-
+            invoice_date = job["invoice_date"]
             # ---------------------------------------------------------
             # GENERATE HL7 FILE
             # ---------------------------------------------------------
@@ -448,7 +448,8 @@ async def worker_loop():
                 installation_descr,
                 payer_taxid,
                 payer_doy,
-                country
+                country,
+                invoice_date
             )
 
             with open(out_path, "r", encoding="utf-8") as f:

@@ -840,6 +840,7 @@ async def generate_hl7(
     installation_descr: str = Query(..., description="Clinic legal name"),
     payer_taxid: str = Query(..., description="Payer tax ID (9 digits)"),
     payer_doy: str = Query(..., description="Payer DOY (4 digits)"),
+    invoice_date: str = Query(..., description="Invoice date YYYYMMDD"),
     db: AsyncSession = Depends(get_session)
 ):
     job_id = f"hl7_discharges_{installation_code}_{from_date}_{to_date}"
@@ -850,6 +851,7 @@ async def generate_hl7(
             from_date=datetime.date.fromisoformat(from_date),
             to_date=datetime.date.fromisoformat(to_date),
             installation_code=installation_code,
+            invoice_date=invoice_date,
             status="queued_batch"
         )
 

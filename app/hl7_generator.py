@@ -149,7 +149,7 @@ async def generate_hl7_file(
                     f"{safe(r.get('patient_participation_perc', 0))}|"
                     f"{safe(r.get('patient_amount', 0))}|0.00||0|0|0.00|0.00|0|\n"
                 )
-                block_total = total
+
             else:
 
                 for i, d in enumerate(diags, start=1):
@@ -186,13 +186,10 @@ async def generate_hl7_file(
                         f"ZSL|||||{i}|{i}|100.00|{total:.2f}|{perc:.2f}|{patient:.2f}|0.00||0|0|0.00|0.00|0|\n"
                     )
 
-                    # ============================================================
-                    # BTS FOR Z04 BLOCK (CORRECTED)
-                    # ============================================================
-                    #await f.write(f"BTS|1||{block_total:.2f}\n")
 
-            # BTS for this Z04 block
-            final_total = sum(float(r.get("total_amount", 0) or 0) for r in discharges)
-            await f.write(f"BTS|{len(discharges)}||{final_total:.2f}\n")
+
+        # FINAL BTS (ONLY ONCE)
+        final_total = sum(float(r.get("total_amount", 0) or 0) for r in discharges)
+        await f.write(f"BTS|{len(discharges)}||{final_total:.2f}\n")
 
     return out_path

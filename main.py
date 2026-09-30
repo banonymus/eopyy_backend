@@ -836,18 +836,13 @@ async def generate_hl7(
     installation_code: str = Query(..., description="Clinic installation code"),
     country_code: str = Query(..., description="GR or **"),
     invoice_number: str = Query(..., description="Invoice number e.g. ΤΠΥ-000005"),
-    contract_number: str = Query(..., description="EOPYY contract number"),
+    contract_number: str = Query(..., description="EOPYY contract ber"),
     installation_descr: str = Query(..., description="Clinic legal name"),
     payer_taxid: str = Query(..., description="Payer tax ID (9 digits)"),
     payer_doy: str = Query(..., description="Payer DOY (4 digits)"),
     invoice_date: str = Query(..., description="Invoice date YYYY-MM-DD"),
     db: AsyncSession = Depends(get_session)
 ):
-    # Validate invoice_date format
-    try:
-        invoice_date_obj = datetime.date.fromisoformat(invoice_date)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="invoice_date must be YYYY-MM-DD")
 
     job_id = f"hl7_discharges_{installation_code}_{from_date}_{to_date}"
 
@@ -857,7 +852,7 @@ async def generate_hl7(
             from_date=datetime.date.fromisoformat(from_date),
             to_date=datetime.date.fromisoformat(to_date),
             installation_code=installation_code,
-            invoice_date=invoice_date_obj,
+            invoice_date=datetime.date.fromisoformat(invoice_date),
             status="queued_batch"
         )
 

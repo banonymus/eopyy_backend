@@ -189,7 +189,7 @@ async def generate_hl7_file(
                     # ============================================================
                     # BTS FOR Z04 BLOCK (CORRECTED)
                     # ============================================================
-                    await f.write(f"BTS|1||{block_total:.2f}\n")
+                    #await f.write(f"BTS|1||{block_total:.2f}\n")
 
             # BTS for this Z04 block
             final_total = sum(float(r.get("total_amount", 0) or 0) for r in discharges)

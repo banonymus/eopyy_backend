@@ -835,12 +835,12 @@ async def generate_hl7(
     to_date: str = Query(..., description="End date YYYY-MM-DD"),
     installation_code: str = Query(..., description="Clinic installation code"),
     country_code: str = Query(..., description="GR or **"),
-    invoice_number: str = Query(..., description="Invoice number e.g. ΤΠΥ-000003"),
+    invoice_number: str = Query(..., description="Invoice number e.g. ΤΠΥ-000005"),
     contract_number: str = Query(..., description="EOPYY contract number"),
     installation_descr: str = Query(..., description="Clinic legal name"),
     payer_taxid: str = Query(..., description="Payer tax ID (9 digits)"),
     payer_doy: str = Query(..., description="Payer DOY (4 digits)"),
-    invoice_date: str = Query(..., description="Invoice dat YYYY-MM-DD"),
+    invoice_date: str = Query(..., description="Invoice date YYYY-MM-DD"),
     db: AsyncSession = Depends(get_session)
 ):
     # Validate invoice_date format

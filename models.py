@@ -119,4 +119,5 @@ class HL7Job(Base):
     installation_descr = Column(String, nullable=False)
     payer_taxid = Column(String, nullable=False)
     payer_doy = Column(String, nullable=False)
+    invoice_date = Column(Date)
 

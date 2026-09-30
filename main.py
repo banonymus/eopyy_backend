@@ -857,7 +857,7 @@ async def generate_hl7(
             from_date=datetime.date.fromisoformat(from_date),
             to_date=datetime.date.fromisoformat(to_date),
             installation_code=installation_code,
-            invoice_date=datetime.date.fromisoformat(invoice_date),
+            invoice_date=invoice_date_obj,
             status="queued_batch"
         )
 

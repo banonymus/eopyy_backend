@@ -177,14 +177,14 @@ async def generate_hl7_file(
 
                     # PSL per diagnosis (KEN + amounts)
                     await f.write(
-                        f"PSL|||{i}||||6^{ken_code}|6||"
+                        f"PSL|||{i}||||1^{ken_code}|1||"
                         f"{fmt(r['discharge_datetime'])}|{fmt(r['discharge_datetime'])}|"
                         f"0.0|||{total:.2f}|{covered:.2f}|||||NO|||||||||\n"
                     )
 
                     # ZSL per diagnosis (participation + patient amount)
                     await f.write(
-                        f"ZSL|||||{i}|{i}|100.00|{total:.2f}|{perc:.2f}|{patient:.2f}|0.00||0|0|0.00|0.00|0|\n"
+                        f"ZSL|||||{i}|{i}|100.00|{total:.2f}|{perc:.2f}|{patient:.2f}|0.00||0|0|0.00|0.00||\n"
                     )
 
 

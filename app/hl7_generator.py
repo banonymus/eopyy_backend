@@ -141,7 +141,7 @@ async def generate_hl7_file(
                 )
                 # PSL/ZSL fallback (keep your old hardcoded values if you want)
                 await f.write(
-                    f"PSL|||1||||6^{safe(r.get('ken_code', ''))}|6||"
+                    f"PSL|||1||||1^{safe(r.get('ken_code', ''))}|1||"
                     f"{fmt(r['discharge_datetime'])}|{fmt(r['discharge_datetime'])}|"
                     f"0.0|||{safe(r.get('total_amount', 0))}|{safe(r.get('covered_amount', 0))}|||||NO|||||||||\n"
                 )

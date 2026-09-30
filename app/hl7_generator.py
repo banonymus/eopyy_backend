@@ -79,7 +79,7 @@ async def generate_hl7_file(
             f"||||{payer_taxid} {payer_doy}\n"
         )
 
-        await f.write("BTS|1\n")
+        await f.write(f"BTS|1||{total_amount:.2f}\n")
 
         # ============================================================
         # Z04 DETAIL BLOCKS
@@ -149,7 +149,9 @@ async def generate_hl7_file(
                     f"{safe(r.get('patient_participation_perc', 0))}|"
                     f"{safe(r.get('patient_amount', 0))}|0.00||0|0|0.00|0.00|0|\n"
                 )
+                block_total = total
             else:
+                block_total = 0.0
                 for i, d in enumerate(diags, start=1):
                     icd10_code = safe(d.get("icd10_code"))
                     icd10_desc = safe(d.get("icd10_desc"))
@@ -159,6 +161,8 @@ async def generate_hl7_file(
                     covered = float(d.get("covered_amount", 0) or 0)
                     patient = float(d.get("patient_amount", 0) or 0)
                     perc = float(d.get("patient_participation_perc", 0) or 0)
+
+                    block_total += total
 
                     # DG1 per diagnosis
                     await f.write(
@@ -182,7 +186,13 @@ async def generate_hl7_file(
                         f"ZSL|||||{i}|{i}|100.00|{total:.2f}|{perc:.2f}|{patient:.2f}|0.00||0|0|0.00|0.00|0|\n"
                     )
 
+                    # ============================================================
+                    # BTS FOR Z04 BLOCK (CORRECTED)
+                    # ============================================================
+                    await f.write(f"BTS|1||{block_total:.2f}\n")
+
             # BTS for this Z04 block
-            await f.write("BTS|1\n")
+            final_total = sum(float(r.get("total_amount", 0) or 0) for r in discharges)
+            await f.write(f"BTS|{len(discharges)}||{final_total:.2f}\n")
 
     return out_path

@@ -149,7 +149,7 @@ async def generate_hl7_file(
                     f"{safe(r.get('patient_participation_perc', 0))}|"
                     f"{safe(r.get('patient_amount', 0))}|0.00||0|0|0.00|0.00|0|\n"
                 )
-                #block_total = total
+                block_total = total
             else:
 
                 for i, d in enumerate(diags, start=1):

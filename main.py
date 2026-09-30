@@ -851,7 +851,7 @@ async def generate_hl7(
             from_date=datetime.date.fromisoformat(from_date),
             to_date=datetime.date.fromisoformat(to_date),
             installation_code=installation_code,
-            invoice_date=invoice_date,
+            invoice_date=datetime.date.fromisoformat(invoice_date),
             status="queued_batch"
         )
 
@@ -861,6 +861,7 @@ async def generate_hl7(
     return {
         "status": "queued_batch",
         "job_id": job_id,
+        "invoice_date": invoice_date,
         "check_status": f"/job-status/{job_id}"
     }
 

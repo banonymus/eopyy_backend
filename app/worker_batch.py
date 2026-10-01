@@ -324,12 +324,12 @@ async def worker_loop():
       AND d.installation_code = $3
             """
 
-            if country == "GR":
-                query += " AND country_code = 'GR'"
+            if  country == "GR":
+                query += " AND d.country_code = 'GR'"
             elif country == "**":
-                query += " AND country_code <> 'GR'"
+                 query += " AND d.country_code <> 'GR'"
 
-            query += " ORDER BY discharge_datetime ASC"
+            query += " ORDER BY d.discharge_datetime ASC"
 
             rows = await conn.fetch(query, start_hl7, end_hl7, job["installation_code"])
             discharges = [dict(r) for r in rows]

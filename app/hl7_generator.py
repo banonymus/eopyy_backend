@@ -122,7 +122,9 @@ async def generate_hl7_file(
 
             # PV1
             await f.write(
-                f"PV1|I|||||{safe(r['doctor_amka'])}^|||||||||||1||1\n"
+                f"PV1|I|||||"
+                f"{safe(r['doctor_amka'])}^{safe(r['doctor_last_name'])}^{safe(r['doctor_first_name'])}"
+                f"|||||||||||1||1\n"
             )
 
             # PV2

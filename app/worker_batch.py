@@ -313,10 +313,15 @@ async def worker_loop():
             country = job.get("country_code")
 
             query = """
-                SELECT *
-                FROM discharges
-                WHERE discharge_datetime BETWEEN $1 AND $2
-                  AND installation_code = $3
+                SELECT
+        d.*,
+        a.doctor_first_name,
+        a.doctor_last_name
+    FROM discharges d
+    JOIN admissions a
+        ON a.ticket_number = d.ticket_number
+    WHERE d.discharge_datetime BETWEEN $1 AND $2
+      AND d.installation_code = $3
             """
 
             if country == "GR":
@@ -431,7 +436,7 @@ async def worker_loop():
             payer_doy = job["payer_doy"]
             invoice_date = job["invoice_date"]
             # ---------------------------------------------------------
-            # GENERATE HL7 FILE
+            # GENERATE HL7 FILE FOR MONTHLY INVOICING
             # ---------------------------------------------------------
             out_path = f"/tmp/{job_id}.hl7"
 

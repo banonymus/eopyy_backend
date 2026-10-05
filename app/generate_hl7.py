@@ -46,7 +46,7 @@ async def generate_hl7(
         installation_descr=installation_descr,
         payer_taxid=payer_taxid,
         payer_doy=payer_doy,
-        invoice_date=datetime.strptime(invoice_date, "%Y-%m-%d"),
+        invoice_date=datetime.strptime(invoice_date, "%Y%m%d"),
         status="queued_batch"
     )
 

@@ -852,7 +852,7 @@ async def generate_hl7(
             from_date=datetime.date.fromisoformat(from_date),
             to_date=datetime.date.fromisoformat(to_date),
             installation_code=installation_code,
-            invoice_date_obj=datetime.date(
+            invoice_date=datetime.date(
                 int(invoice_date[0:4]),
                 int(invoice_date[4:6]),
                 int(invoice_date[6:8])

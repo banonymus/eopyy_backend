@@ -186,8 +186,13 @@ async def generate_hl7_file(
                     #)
 
                     # PSL per diagnosis (KEN + amounts)
+                    if ken_code == "00128":
+                        psl_prefix = f"PSL|||{i}||||1^{ken_code}|1||"
+                    else:
+                        psl_prefix = f"PSL|||{i}||||6^{ken_code}|6||"
+
                     await f.write(
-                        f"PSL|||{i}||||1^{ken_code}|1||"
+                        psl_prefix +
                         f"{fmt(r['discharge_datetime'])}|{fmt(r['discharge_datetime'])}|"
                         f"0.0|||{total:.2f}|{covered:.2f}|||||NO|||||||||\n"
                     )

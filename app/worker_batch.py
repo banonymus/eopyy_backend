@@ -316,7 +316,9 @@ async def worker_loop():
                 SELECT
         d.*,
         a.doctor_first,
-        a.doctor_last
+        a.doctor_last,
+        a.dob_hl7,
+        a.phone1_number
     FROM discharges d
     JOIN admissions a
         ON a.ticket_number = d.ticket_number

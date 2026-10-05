@@ -76,18 +76,20 @@ async def generate_hl7_file(
             f"IVC|{invoice_number}||{contract_number}|OR|NORM|FS|{invoice_date}|||"
             f"{installation_descr}^^^^^^^^^{safe(job_installation_code)}|"
             f"ΕΟΠΥΥ||||||||||"
-            f"{total_amount:.2f}|{covered_amount:.2f}|{patient_amount:.2f}"
+            #f"{total_amount:.2f}|{covered_amount:.2f}|{patient_amount:.2f}"
+            f"{patient_amount:.2f}|{patient_amount:.2f}|{0:.2f}"
             f"||||{payer_taxid} {payer_doy}\n"
         )
 
-        await f.write(f"BTS|1||{total_amount:.2f}\n")
-
+        #await f.write(f"BTS|1||{total_amount:.2f}\n")
+        await f.write(f"BTS|1||{patient_amount:.2f}\n")
+        await f.write("BHS|^~\\&|||||202602~202602\n")
         # ============================================================
         # Z04 DETAIL BLOCKS
         # ============================================================
         for idx, r in enumerate(discharges, start=2):
 
-            await f.write("BHS|^~\\&|||||202602~202602\n")
+
 
             msg_id = f"MSGID{idx:05d}"
 
@@ -100,7 +102,8 @@ async def generate_hl7_file(
             await f.write(
                 f"PSG|{safe(r['ticket_number'])}|"
                 f"{fmt(r['discharge_datetime'])}|"
-                f"{safe(r['alt_visit_id'])}|"
+                #f"{safe(r['alt_visit_id'])}|"
+                f"{safe(r['discharge_ticket_number'])}|"
                 f"{fmt(r['discharge_datetime'])}||Y||1\n"
             )
 
@@ -111,13 +114,17 @@ async def generate_hl7_file(
             )
 
             # PID
+            sex_code = "1" if r["sex_val"] == "M" else "2"
             await f.write(
-                f"PID||{safe(r['ticket_number'])}|{safe(r['amka'])}^^^^ΑΜΑ~"
+                #f"PID||{safe(r['ticket_number'])}|{safe(r['amka'])}^^^^ΑΜΑ~"
+                f"PID||{safe(r['installation_code'])}|{safe(r['amka'])}^^^^ΑΜΑ~"
                 f"{safe(r['installation_code'])}^^^^ΦΟΡΕΑΣ||"
                 f"{safe(r['last_name'])}^{safe(r['first_name'])}^ΑΓΝΩΣΤΟ||"
-                f"{safe(r['dob_hl7'])}|{safe(r['sex_val'])}|||"
-                f"^{safe(r['location_code'])}^000^^{safe(r['location_code'])}"
-                f"^{safe(r['location_code'])}^||||||||||||0||0\n"
+                f"{safe(r['dob_hl7'])}|{sex_code}|||"
+                #f"^{safe(r['location_code'])}^000^^{safe(r['location_code'])}"
+                #f"^{safe(r['location_code'])}^||||||||||||0||0\n"
+                f"^{safe(r['location_code'])}^000^^{safe(r['location_code'])}^{safe(r['location_code'])}^{safe(r['location_code'])}"
+                f"||{safe(r['phone1_number'])}|||||||||0||0\n"
             )
 
             # PV1
@@ -173,9 +180,9 @@ async def generate_hl7_file(
                     )
 
                     # ZKE per diagnosis (KEN + financials)
-                    await f.write(
-                        f"ZKE|{ken_code}|{total:.2f}|{covered:.2f}|{patient:.2f}|{perc:.2f}\n"
-                    )
+                    #await f.write(
+                       # f"ZKE|{ken_code}|{total:.2f}|{covered:.2f}|{patient:.2f}|{perc:.2f}\n"
+                    #)
 
                     # PSL per diagnosis (KEN + amounts)
                     await f.write(
@@ -186,7 +193,7 @@ async def generate_hl7_file(
 
                     # ZSL per diagnosis (participation + patient amount)
                     await f.write(
-                        f"ZSL|||||{i}|{i}|100.00|{total:.2f}|{perc:.2f}|{patient:.2f}|0.00||0|0|0.00|0.00||\n"
+                        f"ZSL|||||{i}|{i}|100.00|{total:.2f}|{perc:.2f}|{patient:.2f}|0.00||0|0|0.00|0.00|0|\n"
                     )
 
 

@@ -72,6 +72,7 @@ async def generate_hl7_file(
         await f.write("MSH|^~\\&|||||||ZHC^Z03^ZHC_Z03|MSGID00001|P|2.6\n")
 
         # DYNAMIC IVC
+        invoice_date = invoice_date.strftime("%Y%m%d")
         await f.write(
             f"IVC|{invoice_number}||{contract_number}|OR|NORM|FS|{invoice_date}|||"
             f"{installation_descr}^^^^^^^^^{safe(job_installation_code)}|"

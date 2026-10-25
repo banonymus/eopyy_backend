@@ -127,7 +127,7 @@ async def generate_hl7_file(
                 #f"^{safe(r['location_code'])}^000^^{safe(r['location_code'])}"
                 #f"^{safe(r['location_code'])}^||||||||||||0||0\n"
                 #f"^{safe(r['location_code'])}^000^^{safe(r['location_code'])}^{safe(r['location_code'])}^{safe(r['location_code'])}"
-                f"^{safe(r['address'])}^000^^{safe(r['city'])}^{safe(r['region'])}^{safe(r['postal_code'])}"
+                f"^{safe(r['address'])}^000^^{safe(r['city'])}^{safe(r['region'])}^{safe(r['location_code'])}"
                 f"||{safe(r['phone1_number'])}|||||||||0||0\n"
             )
 

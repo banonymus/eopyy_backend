@@ -130,7 +130,11 @@ class AdmissionCreate(BaseModel):
     nk1_last: Optional[str] = None
     nk1_first: Optional[str] = None
     ekaa_pdf_base64: Optional[str] = None
-
+    fathers_name: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    region: Optional[str] = None
+    ama: Optional[str] = None
 
 class AdmissionRead(AdmissionBase):
     id: int

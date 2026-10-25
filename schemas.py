@@ -54,6 +54,11 @@ class AdmissionBase(BaseModel):
     nk1_first: Optional[str] = None
     ekaa_pdf_base64: Optional[str] = None
     discharge_ticket_number: str | None = None
+    fathers_name: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    region: Optional[str] = None
+    ama: Optional[str] = None
 
     @validator("ticket_number")
     def ticket_length(cls, v):

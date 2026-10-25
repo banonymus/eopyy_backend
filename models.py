@@ -51,6 +51,12 @@ class Admission(Base):
     nk1_first = Column(String)  # NEW
     diagnoses = Column(JSON)
     ekaa_pdf_base64 = Column(Text)  # NEW — scanned EKAA
+    fathers_name = Column(String(100))
+    address = Column(String(255))
+    city = Column(String(100))
+    region = Column(String(100))
+    ama = Column(String(20))
+
 
 class Discharge(Base):
     __tablename__ = "discharges"

@@ -119,12 +119,15 @@ async def generate_hl7_file(
             await f.write(
                 #f"PID||{safe(r['ticket_number'])}|{safe(r['amka'])}^^^^ΑΜΑ~"
                 f"PID||{safe(r['installation_code'])}|{safe(r['amka'])}^^^^ΑΜΑ~"
-                f"{safe(r['installation_code'])}^^^^ΦΟΡΕΑΣ||"
-                f"{safe(r['last_name'])}^{safe(r['first_name'])}^ΑΓΝΩΣΤΟ||"
+                #f"{safe(r['installation_code'])}^^^^ΦΟΡΕΑΣ||"
+                f"{safe(r['ama'])}^^^^ΦΟΡΕΑΣ||"
+                #f"{safe(r['last_name'])}^{safe(r['first_name'])}^ΑΓΝΩΣΤΟ||"
+                f"{safe(r['last_name'])}^{safe(r['first_name'])}^{safe(r['fathers_name'])}"
                 f"{safe(r['dob_hl7'])}|{sex_code}|||"
                 #f"^{safe(r['location_code'])}^000^^{safe(r['location_code'])}"
                 #f"^{safe(r['location_code'])}^||||||||||||0||0\n"
-                f"^{safe(r['location_code'])}^000^^{safe(r['location_code'])}^{safe(r['location_code'])}^{safe(r['location_code'])}"
+                #f"^{safe(r['location_code'])}^000^^{safe(r['location_code'])}^{safe(r['location_code'])}^{safe(r['location_code'])}"
+                f"^{safe(r['address'])}^000^^{safe(r['city'])}^{safe(r['region'])}^{safe(r['postal_code'])}"
                 f"||{safe(r['phone1_number'])}|||||||||0||0\n"
             )
 

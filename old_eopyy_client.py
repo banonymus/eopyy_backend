@@ -3,6 +3,9 @@ from requests import Session
 from requests.adapters import HTTPAdapter
 from urllib3.util.ssl_ import create_urllib3_context
 from lxml import etree
+import logging
+
+logger = logging.getLogger(__name__)
 
 SOAP_URL = "https://eservices.eopyy.gov.gr/hospitalisationWSS_UGn_EU-hospitalisationWSS_UGn_EU-context-root/MainWSClassPort"
 #USERNAME = "wsepirus2026"
@@ -77,6 +80,21 @@ def submit_hl7(hl7_message, message_type,username,password):
             headers={"Content-Type": "text/xml; charset=utf-8"},
             timeout=30
         )
+
+        # DEBUG: EOPYY SOAP response
+        logger.info("SOAP URL: %s", SOAP_URL)
+        logger.info("SOAP HTTP STATUS: %s", response.status_code)
+        logger.info(
+            "SOAP RESPONSE HEADERS: %s",
+            dict(response.headers)
+        )
+        logger.info(
+            "SOAP RESPONSE BODY: %s",
+            response.text[:10000]
+        )
+
+        response.raise_for_status()
+
 
         return response.text
 

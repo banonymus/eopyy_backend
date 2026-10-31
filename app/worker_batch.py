@@ -85,6 +85,17 @@ async def process_admission_row(pool, row):
             installation_code
         )
 
+        credentials = INSTALLATION_CREDENTIALS.get(installation_code)
+
+        if not credentials:
+            raise ValueError(
+                f"Installation code {installation_code} not found in credentials"
+            )
+
+        username, password = credentials
+
+        logger.info("[%s] Credentials found for installation %s", ticket, installation_code)
+
 
         username, password = INSTALLATION_CREDENTIALS[str(installation_code)]
 

@@ -78,7 +78,8 @@ async def generate_hl7_file(
             f"{installation_descr}^^^^^^^^^{safe(job_installation_code)}|"
             f"ΕΟΠΥΥ||||||||||"
             #f"{total_amount:.2f}|{covered_amount:.2f}|{patient_amount:.2f}"
-            f"{patient_amount:.2f}|{patient_amount:.2f}|{0:.2f}"
+            #f"{patient_amount:.2f}|{patient_amount:.2f}|{0:.2f}"
+            f"{total_amount-covered_amount:.2f}|{total_amount-covered_amount:.2f}|{0:.2f}"
             f"||||{payer_taxid} {payer_doy}\n"
         )
 

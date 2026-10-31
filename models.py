@@ -32,7 +32,7 @@ class Admission(Base):
     doctor_first = Column(String(100))
     visit_number = Column(String(20))
     admit_datetime = Column(String(20))
-    location_code = Column(String(20))
+    location_code = Column(String(255))
     icd10_code = Column(String(20))
     icd10_desc = Column(String(255))
     icd10_date = Column(String(20))

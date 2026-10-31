@@ -101,8 +101,19 @@ async def process_admission_row(pool, row):
 
         raw_response = submit_hl7(hl7,"A01",username,password)
 
+
+
+
+
         # 3. Parse ACK
         msa_code, message_id, err = parse_hl7_response(raw_response)
+
+        logger.info("EOPYY HTTP STATUS: %s", raw_response.status_code)
+        logger.info("EOPYY CONTENT TYPE: %s",
+                    raw_response.headers.get("Content-Type"))
+        logger.info("EOPYY RESPONSE: %s", raw_response.text[:10000])
+
+
 
         logger.info(f"[{ticket}] HL7 MSA={msa_code}, message_id={message_id}, ERR={err}")
 

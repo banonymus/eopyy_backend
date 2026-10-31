@@ -87,9 +87,11 @@ async def process_admission_row(pool, row):
                 f"No credentials configured for installation {installation_code}"
             )
 
+        username, password = credentials
 
 
-        username, password = INSTALLATION_CREDENTIALS[str(installation_code)]
+
+        #username, password = INSTALLATION_CREDENTIALS[str(installation_code)]
 
         raw_response = submit_hl7(hl7,"A01",username,password)
 

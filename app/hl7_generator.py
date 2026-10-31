@@ -71,7 +71,7 @@ async def generate_hl7_file(
 
         await f.write("MSH|^~\\&|||||||ZHC^Z03^ZHC_Z03|MSGID00001|P|2.6\n")
 
-        paid = (total_amount - covered_amount)
+        paid = (covered_amount)
         # DYNAMIC IVC
         invoice_date = invoice_date.strftime("%Y%m%d")
         await f.write(

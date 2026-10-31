@@ -43,11 +43,14 @@ def submit_hl7(hl7_message, message_type,username,password):
         user = etree.SubElement(token, "{http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd}Username")
         #user.text = USERNAME
         user.text = username
+        username="ophthalmic@"
+
 
         pwd = etree.SubElement(token, "{http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd}Password")
         pwd.set("Type", "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#PasswordText")
         #pwd.text = PASSWORD
         pwd.text = password
+        password= "@ophthalmica10"
 
         body = etree.SubElement(envelope, "{http://schemas.xmlsoap.org/soap/envelope/}Body")
 

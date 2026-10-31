@@ -79,7 +79,11 @@ async def process_admission_row(pool, row):
         # 2. Send SOAP
         installation_code = row["installation_code"]
 
-
+        logger.info(
+            "[%s] Received installation_code: '%s'",
+            ticket,
+            installation_code
+        )
 
 
         username, password = INSTALLATION_CREDENTIALS[str(installation_code)]

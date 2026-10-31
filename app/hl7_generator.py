@@ -84,7 +84,8 @@ async def generate_hl7_file(
 
         #await f.write(f"BTS|1||{total_amount:.2f}\n")
         await f.write(f"BTS|1||{patient_amount:.2f}\n")
-        await f.write("BHS|^~\\&|||||202602~202602\n")
+        #await f.write("BHS|^~\\&|||||202602~202602\n")
+        await f.write("BHS|^~\\&|||||{bhs_period}\n")
         # ============================================================
         # Z04 DETAIL BLOCKS
         # ============================================================

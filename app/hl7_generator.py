@@ -168,8 +168,8 @@ async def generate_hl7_file(
                 "",  # PID-25
                 "",  # PID-26
                 "",  # PID-27
-                "",  # PID-28
-                "0",  # PID-29
+                "0",  # PID-28
+                "",   # PID-29
                 "0",  # PID-30
             ]
 

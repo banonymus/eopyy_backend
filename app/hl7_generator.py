@@ -143,17 +143,10 @@ async def generate_hl7_file(
                 "",  # PID-17
                 "",  # PID-18
                 safe(r["ama"]),  # PID-19
-                "",  # PID-20
-                "",  # PID-21
-                "",  # PID-22
-                "",  # PID-23
-                "",  # PID-24
-                "",  # PID-25
-                "",  # PID-26
-                "",  # PID-27
+                "", "", "", "", "", "", "", "",  # PID-20 to PID-27
                 "",  # PID-28
                 "0",  # PID-29
-                "",   # PID-30
+                "",  # PID-30
                 "0",  # PID-31
             ]
 

@@ -159,7 +159,7 @@ async def generate_hl7_file(
                 "",  # PID-16
                 "",  # PID-17
                 "",  # PID-18
-                safe(r["ama"]),  # PID-19
+                safe(r["amka"]),  # PID-19
                 "",  # PID-20
                 "",  # PID-21
                 "",  # PID-22

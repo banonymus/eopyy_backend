@@ -120,20 +120,43 @@ async def generate_hl7_file(
 
             # PID
             sex_code = "1" if r["sex_val"] == "M" else "2"
-            await f.write(
-                #f"PID||{safe(r['ticket_number'])}|{safe(r['amka'])}^^^^ΑΜΑ~"
-                f"PID||{safe(r['installation_code'])}|{safe(r['amka'])}^^^^ΑΜΑ~"
-                #f"{safe(r['installation_code'])}^^^^ΦΟΡΕΑΣ||"
-                f"{safe(r['ama'])}^^^^ΦΟΡΕΑΣ||"
-                #f"{safe(r['last_name'])}^{safe(r['first_name'])}^ΑΓΝΩΣΤΟ||"
-                f"{safe(r['last_name'])}^{safe(r['first_name'])}^{safe(r['fathers_name'])}"
-                f"{safe(r['dob_hl7'])}|{sex_code}|||"
-                #f"^{safe(r['location_code'])}^000^^{safe(r['location_code'])}"
-                #f"^{safe(r['location_code'])}^||||||||||||0||0\n"
-                #f"^{safe(r['location_code'])}^000^^{safe(r['location_code'])}^{safe(r['location_code'])}^{safe(r['location_code'])}"
-                f"^{safe(r['address'])}^000^^{safe(r['city'])}^{safe(r['region'])}^{safe(r['location_code'])}|||"
-                f"||{safe(r['phone1_number'])}|||||||||0||0\n"
-            )
+
+            pid_fields = [
+                "PID",  # PID-0
+                "",  # PID-1
+                safe(r["installation_code"]),  # PID-2
+                f"{safe(r['ama'])}^^^^ΑΜΑ~10000^^^^ΦΟΡΕΑΣ",  # PID-3
+                "",  # PID-4
+                f"{safe(r['last_name'])}^{safe(r['first_name'])}^{safe(r['fathers_name'])}",  # PID-5
+                "",  # PID-6
+                safe(r["dob_hl7"]),  # PID-7
+                sex_code,  # PID-8
+                "",  # PID-9
+                "",  # PID-10
+                f"^{safe(r['address'])}^000^^{safe(r['city'])}^{safe(r['region'])}^{safe(r['location_code'])}",
+                # PID-11
+                "",  # PID-12
+                safe(r["phone1_number"]),  # PID-13
+                "",  # PID-14
+                "",  # PID-15
+                "",  # PID-16
+                "",  # PID-17
+                "",  # PID-18
+                safe(r["ama"]),  # PID-19
+                "",  # PID-20
+                "",  # PID-21
+                "",  # PID-22
+                "",  # PID-23
+                "",  # PID-24
+                "",  # PID-25
+                "",  # PID-26
+                "",  # PID-27
+                "",  # PID-28
+                "0",  # PID-29
+                "0",  # PID-30
+            ]
+
+            await f.write("|".join(pid_fields) + "\n")
 
             # PV1
             await f.write(

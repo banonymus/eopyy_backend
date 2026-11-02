@@ -74,18 +74,23 @@ async def generate_hl7_file(
         #paid = (covered_amount)
         covered_amount = float(covered_amount or 0)
 
-        if covered_amount <= 5000:
-            reduction_rate = 0.00
-        elif covered_amount < 100000:
-            reduction_rate = 0.04
-        elif covered_amount < 400000:
-            reduction_rate = 0.06
-        elif covered_amount <= 1000000:
-            reduction_rate = 0.08
-        else:
-            reduction_rate = 0.10
+        covered_amount = float(covered_amount or 0)
 
-        paid = covered_amount * (1 - reduction_rate)
+        reduction = 0.0
+
+        if covered_amount > 5000:
+            reduction += (min(covered_amount, 100000) - 5000) * 0.04
+
+        if covered_amount > 100000:
+            reduction += (min(covered_amount, 400000) - 100000) * 0.06
+
+        if covered_amount > 400000:
+            reduction += (min(covered_amount, 1000000) - 400000) * 0.08
+
+        if covered_amount > 1000000:
+            reduction += (covered_amount - 1000000) * 0.10
+
+        paid = covered_amount - reduction
 
 
         # DYNAMIC IVC

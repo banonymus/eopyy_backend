@@ -74,16 +74,16 @@ async def generate_hl7_file(
         #paid = (covered_amount)
         covered_amount = float(covered_amount or 0)
 
-        if 5000 <= covered_amount < 100000:
+        if covered_amount <= 5000:
+            reduction_rate = 0.00
+        elif covered_amount < 100000:
             reduction_rate = 0.04
-        elif 100000 <= covered_amount < 400000:
+        elif covered_amount < 400000:
             reduction_rate = 0.06
-        elif 400000 <= covered_amount <= 1000000:
+        elif covered_amount <= 1000000:
             reduction_rate = 0.08
-        elif covered_amount > 1000000:
-            reduction_rate = 0.10
         else:
-            reduction_rate = 0.0
+            reduction_rate = 0.10
 
         paid = covered_amount * (1 - reduction_rate)
 

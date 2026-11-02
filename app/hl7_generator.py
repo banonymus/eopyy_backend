@@ -122,7 +122,7 @@ async def generate_hl7_file(
             sex_code = "1" if r["sex_val"] == "M" else "2"
 
             pid_fields = [
-                "PID",  # PID-0
+                "PID",  # Segment name
                 "",  # PID-1
                 safe(r["installation_code"]),  # PID-2
                 f"{safe(r['ama'])}^^^^ΑΜΑ~10000^^^^ΦΟΡΕΑΣ",  # PID-3
@@ -136,18 +136,24 @@ async def generate_hl7_file(
                 f"^{safe(r['address'])}^000^^{safe(r['city'])}^{safe(r['region'])}^{safe(r['location_code'])}",
                 # PID-11
                 "",  # PID-12
-                safe(r["phone1_number"]),  # PID-13
-                "",  # PID-14
+                "",  # PID-13
+                safe(r["phone1_number"]),  # PID-14
                 "",  # PID-15
                 "",  # PID-16
                 "",  # PID-17
                 "",  # PID-18
                 safe(r["ama"]),  # PID-19
-                "", "", "", "", "", "", "", "",  # PID-20 to PID-27
+                "",  # PID-20
+                "",  # PID-21
+                "",  # PID-22
+                "",  # PID-23
+                "",  # PID-24
+                "",  # PID-25
+                "",  # PID-26
+                "",  # PID-27
                 "",  # PID-28
                 "0",  # PID-29
-                "",  # PID-30
-                "0",  # PID-31
+                "0",  # PID-30
             ]
 
             await f.write("|".join(pid_fields) + "\n")

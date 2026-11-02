@@ -153,7 +153,8 @@ async def generate_hl7_file(
                 "",  # PID-27
                 "",  # PID-28
                 "0",  # PID-29
-                "0",  # PID-30
+                "",   # PID-30
+                "0",  # PID-31
             ]
 
             await f.write("|".join(pid_fields) + "\n")

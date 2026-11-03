@@ -7,7 +7,7 @@ EXPECTED_KEY = API_KEY
 
 INSTALLATION_CREDENTIALS = {
     "75752": ("wsepirus2026", "Wsepirus@@2026"),
-    "77073": ("Wsophalm2023", "Wsophalm2023"),
+    "77073": ("wsophalm", "Wsophalm2023"),
     "30000": ("clinicB", "ClinicB@@2026"),
     "40000": ("centerC", "CenterC@@2026"),
     "50000": ("unitD", "UnitD@@2026")
